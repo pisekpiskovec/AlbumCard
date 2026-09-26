@@ -1,26 +1,29 @@
 #![cfg(test)]
 
 use crate::items::{
-    Album, AlbumItemPosition, AlbumMode::{Ep, Single}, Track, TrackEdit,
+    Album, AlbumItemPosition,
+    AlbumMode::{Ep, Single},
+    Track, TrackEdit,
 };
 use std::path::PathBuf;
 
 #[test]
 fn parsing_album_items() {
-    let track: Track = Track {
+    let track = Track {
         file_path: PathBuf::from("~/Hudba/ProjectMoon - Oh Crab So Crab.mp3"),
+        artist: None,
         title: "Oh Crab So Crab".to_string(),
         genre: None,
         release_date: None,
-        performer: "".to_string(),
-        composer: "".to_string(),
-        lyricist: "".to_string(),
-        remixer: "".to_string(),
-        sort_album_title: "".to_string(),
-        sort_album_artist: "".to_string(),
-        sort_composer: "".to_string(),
-        sort_performer: "".to_string(),
-        sort_track_title: "".to_string(),
+        performer: None,
+        composer: None,
+        lyricist: None,
+        remixer: None,
+        sort_album_title: None,
+        sort_album_artist: None,
+        sort_composer: None,
+        sort_performer: None,
+        sort_track_title: None,
     };
 
     let mut album = Album::new(
@@ -258,6 +261,7 @@ fn removing_the_track_frees_up_single_mode_for_another() {
 fn apply_edit_trims_and_normalizes_fields() {
     let mut track = Track::new(PathBuf::from("a.mp3"));
     let edit = TrackEdit {
+        artist: "   ProjectMoon    ".to_string(),
         title: "   Oh Crab So Crab ".to_string(),
         genre: "   ".to_string(),
         release_date: " 2023-05-01    ".to_string(),
@@ -279,7 +283,7 @@ fn apply_edit_trims_and_normalizes_fields() {
         track.release_date,
         Some(chrono::NaiveDate::from_ymd_opt(2023, 5, 1).unwrap())
     );
-    assert_eq!(track.performer, "ProjectMoon");
+    assert_eq!(track.performer, Some("ProjectMoon".to_string()));
 }
 
 #[test]
@@ -343,4 +347,19 @@ fn edit_snapshot_round_trips_through_apply_edit() {
     assert_eq!(track2.title, track.title);
     assert_eq!(track2.genre, track.genre);
     assert_eq!(track2.release_date, track.release_date);
+}
+
+#[test]
+fn track_artist_and_genre_fall_back_to_the_album_when_unset() {
+    let album = Album::new(Ep, "Title", "Artist", "", "Soundtrack", None).expect("valid date");
+
+    let plain_track = Track::new(PathBuf::from("a.mp3"));
+    assert_eq!(plain_track.effective_artist(&album), "Artist");
+    assert_eq!(plain_track.effective_genre(&album), "Soundtrack");
+
+    let mut featured_track = Track::new(PathBuf::from("b.mp3"));
+    featured_track.artist = Some("Mili".to_string());
+    featured_track.genre = Some("Electronic".to_string());
+    assert_eq!(featured_track.effective_artist(&album), "Mili");
+    assert_eq!(featured_track.effective_genre(&album), "Electronic");
 }
