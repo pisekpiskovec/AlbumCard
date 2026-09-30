@@ -14,6 +14,12 @@ use crate::models::{
 
 const DEFAULT_VOID_SIZE: u32 = 1;
 
+#[derive(Debug)]
+enum Direction {
+    Up,
+    Down,
+}
+
 struct AppModel {
     album: Album,
     window: adw::Window,
@@ -26,6 +32,7 @@ enum AppMsg {
     NewAlbum,
     EditTrackRequest(usize),
     TrackEditResult(TrackEditOutput),
+    MoveItem(usize, Direction),
 }
 
 struct AppWidgets {
@@ -57,16 +64,19 @@ impl SimpleComponent for AppModel {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut album = Album::new(
-            AlbumMode::Single,
-            "Iron Lotus",
+            AlbumMode::Ep,
+            "To Kill A Living Book -for Library Of Ruina-",
             "Mili",
             "2021-02-27",
-            "Electronic",
+            "Soundtrack",
             None,
         )
         .expect("hardcoded demo album should be valid");
         let mut track = Track::new(PathBuf::from("/home/pisek/Hudba/Mili - Iron Lotus.mp3"));
         track.title = "Iron Lotus".to_string();
+        album.add_track(track);
+        let mut track = Track::new(PathBuf::from("/home/pisek/Hudba/Mili - Children of the City.mp3"));
+        track.title = "Children of the City".to_string();
         album.add_track(track);
 
         let split_view = adw::NavigationSplitView::new();
@@ -292,6 +302,14 @@ impl SimpleComponent for AppModel {
                     dialog.widget().close();
                 }
             }
+            AppMsg::MoveItem(index, direction) => match direction {
+                Direction::Up => {
+                    self.album.move_item(index, index.saturating_sub(1));
+                }
+                Direction::Down => {
+                    self.album.move_item(index, index.saturating_add(1));
+                }
+            },
         }
     }
 
@@ -367,6 +385,22 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     .hexpand(true)
                     .halign(gtk::Align::Start)
                     .build();
+                let move_up_button = gtk::Button::from_icon_name("go-up-symbolic");
+                move_up_button.set_visible(idx > 0);
+                {
+                    let sender = sender.clone();
+                    move_up_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Up));
+                    });
+                }
+                let move_down_button = gtk::Button::from_icon_name("go-down-symbolic");
+                move_down_button.set_visible(idx < album.get_items().len() - 1);
+                {
+                    let sender = sender.clone();
+                    move_down_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Down));
+                    });
+                }
                 let edit_button = gtk::Button::from_icon_name("document-edit-symbolic");
                 {
                     let sender = sender.clone();
@@ -377,6 +411,8 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 let delete_button = gtk::Button::from_icon_name("user-trash-symbolic");
                 delete_button.add_css_class("destructive-action");
                 row_box.append(&label);
+                row_box.append(&move_up_button);
+                row_box.append(&move_down_button);
                 row_box.append(&edit_button);
                 row_box.append(&delete_button);
                 row_box.upcast()
