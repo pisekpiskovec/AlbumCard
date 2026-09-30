@@ -1,11 +1,8 @@
 #![cfg(test)]
 
-use crate::items::{
-    Album, AlbumItemPosition,
-    AlbumMode::{Ep, Single},
-    Track, TrackEdit,
-};
 use std::path::PathBuf;
+
+use crate::models::{album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*}, track::{DiscLabel, Track, TrackEdit, TrackFieldError}};
 
 #[test]
 fn parsing_album_items() {
@@ -115,23 +112,23 @@ fn void_gap_with_no_disc_grouping() {
         album.item_positions(),
         vec![
             Some(AlbumItemPosition {
-                disk: crate::items::DiscLabel::Ungrouped,
+                disk: DiscLabel::Ungrouped,
                 track: None
             }),
             Some(AlbumItemPosition {
-                disk: crate::items::DiscLabel::Ungrouped,
+                disk: DiscLabel::Ungrouped,
                 track: Some(2)
             }),
             Some(AlbumItemPosition {
-                disk: crate::items::DiscLabel::Ungrouped,
+                disk: DiscLabel::Ungrouped,
                 track: Some(3)
             }),
             Some(AlbumItemPosition {
-                disk: crate::items::DiscLabel::Ungrouped,
+                disk: DiscLabel::Ungrouped,
                 track: None
             }),
             Some(AlbumItemPosition {
-                disk: crate::items::DiscLabel::Ungrouped,
+                disk: DiscLabel::Ungrouped,
                 track: Some(7)
             }),
         ]
@@ -229,7 +226,7 @@ fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
     let removed = album.remove_item(0);
     assert!(matches!(
         removed,
-        Some(crate::items::AlbumItem::Void { size: 4 })
+        Some(AlbumItem::Void { size: 4 })
     ));
     assert_eq!(album.get_items().len(), 1);
     assert_eq!(
@@ -297,7 +294,7 @@ fn apply_edit_rejects_empty_title_and_leaves_track_unchanged() {
     };
 
     let errors = track.apply_edit(edit).unwrap_err();
-    assert_eq!(errors, vec![crate::items::TrackFieldError::TitleEmpty]);
+    assert_eq!(errors, vec![TrackFieldError::TitleEmpty]);
     assert_eq!(
         track.title, "Original Title",
         "a rejected edit must not partially apply"
@@ -317,8 +314,8 @@ fn apply_edit_rejecs_unparseable_date_and_reports_both_errors_together() {
     assert_eq!(
         errors,
         vec![
-            crate::items::TrackFieldError::TitleEmpty,
-            crate::items::TrackFieldError::InvalidReleaseDate
+            TrackFieldError::TitleEmpty,
+            TrackFieldError::InvalidReleaseDate
         ]
     );
 }

@@ -1,15 +1,11 @@
-mod items;
+mod models;
 mod tests;
 
 use std::path::PathBuf;
-
-use adw::{ToolbarView, prelude::*};
-use gtk::{Label, prelude::*};
+use adw::prelude::*;
 use relm4::prelude::*;
 
-use crate::items::{
-    Album, AlbumItem, AlbumItemType, AlbumMode::{self, Ep, Single}, Track,
-};
+use crate::models::{album::{Album, AlbumItem, AlbumItemType, AlbumMode}, track::Track};
 
 const DEFAULT_VOID_SIZE: u32 = 1;
 
@@ -52,7 +48,7 @@ impl SimpleComponent for AppModel {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let mut album = Album::new(
-            Single,
+            AlbumMode::Single,
             "Iron Lotus",
             "Mili",
             "2021-02-27",
@@ -271,8 +267,8 @@ impl SimpleComponent for AppModel {
 
 fn format_album_meta(album: &Album) -> String {
     let type_str= match album.mode {
-        Single => "Single",
-        Ep => "EP",
+        AlbumMode::Single => "Single",
+        AlbumMode::Ep => "EP",
     };
 
     let mut parts = vec![type_str.to_string()];
