@@ -219,4 +219,9 @@ impl Album {
         self.items.insert(to, item);
         true
     }
+
+    /// Mutable access to the item at `index`
+    pub fn get_item_mut(&mut self, index: usize) -> Option<&mut AlbumItem> {
+        self.items.get_mut(index)
+    }
 }

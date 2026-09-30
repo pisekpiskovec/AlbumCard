@@ -1,22 +1,31 @@
+mod dialogs;
 mod models;
 mod tests;
 
-use std::path::PathBuf;
 use adw::prelude::*;
 use relm4::prelude::*;
+use std::path::PathBuf;
 
-use crate::models::{album::{Album, AlbumItem, AlbumItemType, AlbumMode}, track::Track};
+use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput};
+use crate::models::{
+    album::{Album, AlbumItem, AlbumItemType, AlbumMode},
+    track::Track,
+};
 
 const DEFAULT_VOID_SIZE: u32 = 1;
 
 struct AppModel {
     album: Album,
+    window: adw::Window,
+    track_edit_dialog: Option<Controller<TrackEditDialog>>,
 }
 
 #[derive(Debug)]
 enum AppMsg {
     AddItem(AlbumItemType),
     NewAlbum,
+    EditTrackRequest(usize),
+    TrackEditResult(TrackEditOutput),
 }
 
 struct AppWidgets {
@@ -179,9 +188,7 @@ impl SimpleComponent for AppModel {
             .halign(gtk::Align::Start)
             .css_classes(["title-1"])
             .build();
-        let album_artist_label = gtk::Label::builder()
-            .halign(gtk::Align::Start)
-            .build();
+        let album_artist_label = gtk::Label::builder().halign(gtk::Align::Start).build();
         let album_meta_label = gtk::Label::builder()
             .halign(gtk::Align::Start)
             .css_classes(["dim-label"])
@@ -227,46 +234,82 @@ impl SimpleComponent for AppModel {
         album_title_label.set_label(&album.title);
         album_artist_label.set_label(&album.album_artist);
         album_meta_label.set_label(&format_album_meta(&album));
-        populate_tracklist(&tracklist_box, &album);
+        populate_tracklist(&tracklist_box, &album, sender);
 
-        let model = AppModel { album };
-        let widgets = AppWidgets { split_view, album_title_label, album_artist_label, album_meta_label, tracklist_box };
+        let model = AppModel {
+            album,
+            window: root.clone(),
+            track_edit_dialog: None,
+        };
+        let widgets = AppWidgets {
+            split_view,
+            album_title_label,
+            album_artist_label,
+            album_meta_label,
+            tracklist_box,
+        };
 
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
-            AppMsg::AddItem(kind) => {
-                match kind {
-                    AlbumItemType::Disk => {
-                        self.album.add_disk(None);
-                    },
-                    AlbumItemType::Track => {
-                        self.album.add_track(Track::new(PathBuf::new()));
-                    },
-                    AlbumItemType::Void => {
-                        self.album.add_void(DEFAULT_VOID_SIZE);
-                    },
+            AppMsg::AddItem(kind) => match kind {
+                AlbumItemType::Disk => {
+                    self.album.add_disk(None);
+                }
+                AlbumItemType::Track => {
+                    self.album.add_track(Track::new(PathBuf::new()));
+                }
+                AlbumItemType::Void => {
+                    self.album.add_void(DEFAULT_VOID_SIZE);
                 }
             },
             AppMsg::NewAlbum => {
                 eprintln!("TODO: open the new-album dialog");
-            },
+            }
+            AppMsg::EditTrackRequest(index) => {
+                let Some(AlbumItem::Track(track)) = self.album.get_items().get(index) else {
+                    return;
+                };
+                let dialog = TrackEditDialog::builder()
+                    .launch((index, track.edit_snapshot()))
+                    .forward(sender.input_sender(), AppMsg::TrackEditResult);
+                dialog.widget().present(Some(&self.window));
+
+                self.track_edit_dialog = Some(dialog);
+            }
+            AppMsg::TrackEditResult(TrackEditOutput::Saved { index, edit }) => {
+                if let Some(AlbumItem::Track(track)) = self.album.get_item_mut(index) {
+                    track.apply_edit(edit).ok();
+                }
+                if let Some(dialog) = self.track_edit_dialog.take() {
+                    dialog.widget().close();
+                }
+            }
+            AppMsg::TrackEditResult(TrackEditOutput::Cancelled) => {
+                if let Some(dialog) = self.track_edit_dialog.take() {
+                    dialog.widget().close();
+                }
+            }
         }
     }
 
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
+    fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
         widgets.album_title_label.set_label(&self.album.title);
-        widgets.album_artist_label.set_label(&self.album.album_artist);
-        widgets.album_meta_label.set_label(&format_album_meta(&self.album));
-        populate_tracklist(&widgets.tracklist_box, &self.album);
+        widgets
+            .album_artist_label
+            .set_label(&self.album.album_artist);
+        widgets
+            .album_meta_label
+            .set_label(&format_album_meta(&self.album));
+        populate_tracklist(&widgets.tracklist_box, &self.album, sender);
         let _ = &widgets.split_view;
     }
 }
 
 fn format_album_meta(album: &Album) -> String {
-    let type_str= match album.mode {
+    let type_str = match album.mode {
         AlbumMode::Single => "Single",
         AlbumMode::Ep => "EP",
     };
@@ -287,7 +330,10 @@ fn format_album_meta(album: &Album) -> String {
         parts.push(format!("{track_count}/{disk_count}"));
     }
 
-    let date_str = album.release_date.map(|d| d.format("%b %e, %Y").to_string()).unwrap_or_else(|| "Unknown date".to_string());
+    let date_str = album
+        .release_date
+        .map(|d| d.format("%b %e, %Y").to_string())
+        .unwrap_or_else(|| "Unknown date".to_string());
     parts.push(date_str);
 
     parts.push(album.genre.clone());
@@ -301,11 +347,11 @@ fn clear_children(container: &gtk::Box) {
     }
 }
 
-fn populate_tracklist(container: &gtk::Box, album: &Album) {
+fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSender<AppModel>) {
     clear_children(container);
 
     let positions = album.item_positions();
-    for (item, position) in album.get_items().iter().zip(positions) {
+    for (idx, (item, position)) in album.get_items().iter().zip(positions).enumerate() {
         let row: gtk::Widget = match item {
             AlbumItem::Disk { title } => gtk::Label::builder()
                 .label(title.clone().unwrap_or_else(|| "Disk".to_string()))
@@ -322,12 +368,19 @@ fn populate_tracklist(container: &gtk::Box, album: &Album) {
                     .halign(gtk::Align::Start)
                     .build();
                 let edit_button = gtk::Button::from_icon_name("document-edit-symbolic");
+                {
+                    let sender = sender.clone();
+                    edit_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::EditTrackRequest(idx));
+                    });
+                }
                 let delete_button = gtk::Button::from_icon_name("user-trash-symbolic");
+                delete_button.add_css_class("destructive-action");
                 row_box.append(&label);
                 row_box.append(&edit_button);
                 row_box.append(&delete_button);
                 row_box.upcast()
-            },
+            }
             AlbumItem::Void { size } => {
                 let pos_str = position.map(|p| p.to_string()).unwrap_or_default();
                 gtk::Label::builder()
@@ -336,7 +389,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album) {
                     .css_classes(["dim-label"])
                     .build()
                     .upcast()
-            },
+            }
         };
         container.append(&row);
     }
