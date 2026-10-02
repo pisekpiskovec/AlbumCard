@@ -287,7 +287,7 @@ impl SimpleComponent for AppModel {
         match message {
             AppMsg::AddItem(kind) => match kind {
                 AlbumItemType::Disk => {
-                    self.album.add_disk(None);
+                    self.album.add_disk();
                 }
                 AlbumItemType::Track => {
                     self.album.add_track(Track::new(PathBuf::new()));
@@ -423,10 +423,14 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
     let positions = album.item_positions();
     for (idx, (item, position)) in album.get_items().iter().zip(positions).enumerate() {
         let row: gtk::Widget = match item {
-            AlbumItem::Disk { title } => {
+            AlbumItem::Disk => {
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                let disk_label = match album.disk_number_at(idx) {
+                    Some(n) => format!("Disc {n}"),
+                    None => "Disc".to_string(), // fallback that should not happen
+                };
                 let label = gtk::Label::builder()
-                    .label(title.clone().unwrap_or_else(|| "Disk".to_string()))
+                    .label(disk_label)
                     .halign(gtk::Align::Start)
                     .hexpand(true)
                     .css_classes(["heading"])
