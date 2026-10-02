@@ -1,3 +1,4 @@
+mod config;
 mod dialogs;
 mod models;
 mod tests;
@@ -6,6 +7,7 @@ use adw::prelude::*;
 use relm4::prelude::*;
 use std::path::PathBuf;
 
+use crate::config::VERSION;
 use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput};
 use crate::models::{
     album::{Album, AlbumItem, AlbumItemType, AlbumMode},
@@ -28,6 +30,7 @@ struct AppModel {
 
 #[derive(Debug)]
 enum AppMsg {
+    About,
     AddItem(AlbumItemType),
     NewAlbum,
     EditTrackRequest(usize),
@@ -82,8 +85,24 @@ impl SimpleComponent for AppModel {
         let split_view = adw::NavigationSplitView::new();
 
         // Sidebar pane
+        let ham_popover = gtk::Popover::new();
+        let ham_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let about_button = gtk::Button::builder()
+            .label("About AlbumCard")
+            .css_classes(["flat"])
+            .halign(gtk::Align::Start)
+            .build();
+        let s = sender.clone();
+        let popover = ham_popover.clone();
+        about_button.connect_clicked(move |_| {
+            s.input(AppMsg::About);
+            popover.popdown();
+        });
+        ham_popover_box.append(&about_button);
+        ham_popover.set_child(Some(&ham_popover_box));
         let hamburger = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
+            .popover(&ham_popover)
             .build();
 
         let collapse_button = gtk::Button::from_icon_name("sidebar-show-symbolic");
@@ -310,6 +329,27 @@ impl SimpleComponent for AppModel {
                     self.album.move_item(index, index.saturating_add(1));
                 }
             },
+            AppMsg::About => {
+                let about = adw::AboutDialog::builder()
+                    .application_name("AlbumCard")
+                    // .application_icon()
+                    .developer_name("Písek Pískovec")
+                    .version(VERSION)
+                    .developers(vec!["Písek Pískovec"])
+                    // .artists(vec![]})
+                    // .translator_credits(vec![])
+                    .copyright("TBD")
+                    .comments("\\o")
+                    .website("https://github.com/PisekPiskovec/AlbumCard")
+                    .issue_url("https://github.com/PisekPiskovec/AlbumCard/issues")
+                    // .license_type()
+                    .build();
+
+                let app = relm4::main_adw_application();
+                if let Some(win) = app.active_window() {
+                    about.present(Some(&win));
+                }
+            }
         }
     }
 
