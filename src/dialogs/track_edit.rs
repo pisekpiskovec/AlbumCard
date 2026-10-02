@@ -1,4 +1,5 @@
 use adw::prelude::*;
+use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
 
 use crate::models::track::{Track, TrackEdit, TrackFieldError};
@@ -29,7 +30,15 @@ pub struct TrackEditDialog {
 }
 
 pub struct TrackEditWidgets {
+    release_date_button: gtk::MenuButton,
     toast_overlay: adw::ToastOverlay,
+}
+
+fn release_date_label(value: &str) -> &str {
+    match value.is_empty() {
+        true => "Not set",
+        false => value,
+    }
 }
 
 impl Component for TrackEditDialog {
@@ -87,18 +96,64 @@ impl Component for TrackEditDialog {
 
         entry_row!("Title", title, TitleChanged);
         entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
-        entry_row!(
-            "Release Date (YYYY-MM-DD, blank to use album date)",
-            release_date,
-            ReleaseDateChanged
-        );
         entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
         entry_row!("Performer", performer, PerformerChanged);
         entry_row!("Composer", composer, ComposerChanged);
         entry_row!("Lyricist", lyricist, LyricistChanged);
         entry_row!("Remixer", remixer, RemixerChanged);
 
+        let calendar = gtk::Calendar::new();
+        if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
+            calendar.set_year(parsed.year());
+            calendar.set_month(parsed.month0() as i32);
+            calendar.set_day(parsed.day() as i32);
+        }
+
+        let clear_date_button = gtk::Button::with_label("Clear date");
+
+        let calendar_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        calendar_popover_box.append(&calendar);
+        calendar_popover_box.append(&clear_date_button);
+        let calendar_popover = gtk::Popover::builder().child(&calendar_popover_box).build();
+
+        let release_date_button = gtk::MenuButton::builder()
+            .label(release_date_label(&edit.release_date))
+            .valign(gtk::Align::Center)
+            .popover(&calendar_popover)
             .build();
+        {
+            let sender = sender.clone();
+            let popover = calendar_popover.clone();
+            let button = release_date_button.clone();
+            calendar.connect_day_selected(move |cal| {
+                let date = cal.date();
+                let formatted = format!(
+                    "{:04}-{:02}-{:02}",
+                    date.year(),
+                    date.month(),
+                    date.day_of_month()
+                );
+                sender.input(TrackEditMsg::ReleaseDateChanged(formatted.clone()));
+                button.set_label(&formatted);
+                popover.popdown();
+            });
+        }
+        {
+            let sender = sender.clone();
+            let popover = calendar_popover.clone();
+            clear_date_button.connect_clicked(move |_| {
+                sender.input(TrackEditMsg::ReleaseDateChanged(String::new()));
+                popover.popdown();
+            });
+        }
+
+        let release_date_row = adw::ActionRow::builder()
+            .title("Release date")
+            .activatable_widget(&release_date_button)
+            .build();
+        release_date_row.add_suffix(&release_date_button);
+        group.add(&release_date_row);
+
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder()
             .vexpand(true)
@@ -124,6 +179,7 @@ impl Component for TrackEditDialog {
 
         let model = TrackEditDialog { index, edit };
         let widgets = TrackEditWidgets {
+            release_date_button,
             toast_overlay,
         };
 

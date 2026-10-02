@@ -80,7 +80,9 @@ impl SimpleComponent for AppModel {
         let mut track = Track::new(PathBuf::from("/home/pisek/Hudba/Mili - Iron Lotus.mp3"));
         track.title = "Iron Lotus".to_string();
         album.add_track(track);
-        let mut track = Track::new(PathBuf::from("/home/pisek/Hudba/Mili - Children of the City.mp3"));
+        let mut track = Track::new(PathBuf::from(
+            "/home/pisek/Hudba/Mili - Children of the City.mp3",
+        ));
         track.title = "Children of the City".to_string();
         album.add_track(track);
 
