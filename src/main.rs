@@ -37,6 +37,7 @@ enum AppMsg {
     TrackEditResult(TrackEditOutput),
     MoveItem(usize, Direction),
     DeleteItem(usize),
+    SetVoidSize(usize, u32),
 }
 
 struct AppWidgets {
@@ -356,6 +357,11 @@ impl SimpleComponent for AppModel {
                     .remove_item(index)
                     .expect("Index out of bounds? Why?");
             }
+            AppMsg::SetVoidSize(index, size) => {
+                if let Some(AlbumItem::Void { size: void_size }) = self.album.get_item_mut(index) {
+                    *void_size = size.max(1);
+                }
+            }
         }
     }
 
@@ -509,6 +515,15 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     .hexpand(true)
                     .css_classes(["dim-label"])
                     .build();
+                let adjustment = gtk::Adjustment::new(*size as f64, 1.0, 999.0, 1.0, 10.0, 0.0);
+                let size_spinner = gtk::SpinButton::new(Some(&adjustment), 1.0, 0);
+                size_spinner.set_valign(gtk::Align::Center);
+                {
+                    let sender = sender.clone();
+                    size_spinner.connect_value_changed(move |spin| {
+                        sender.input(AppMsg::SetVoidSize(idx, spin.value() as u32));
+                    });
+                }
                 let move_up_button = gtk::Button::from_icon_name("go-up-symbolic");
                 move_up_button.set_visible(idx > 0);
                 {
@@ -536,6 +551,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 row_box.append(&label);
                 row_box.append(&move_up_button);
                 row_box.append(&move_down_button);
+                row_box.append(&size_spinner);
                 row_box.append(&delete_button);
                 row_box.upcast()
             }
