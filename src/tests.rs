@@ -33,11 +33,11 @@ fn parsing_album_items() {
     )
     .expect("valid date");
 
-    album.add_disk(Some("Songs".to_string()));
+    album.add_disk();
     album.add_void(96);
     album.add_track(track);
     album.add_void(236);
-    album.add_disk(Some("Latest".to_string()));
+    album.add_disk();
     album.add_void(1);
 
     assert_eq!(album.get_length(), 334);
@@ -56,7 +56,7 @@ fn single_mode_rejects_disks_and_a_second_track() {
     .expect("valid date");
 
     assert!(
-        !album.add_disk(Some("Disc".to_string())),
+        !album.add_disk(),
         "Single must not accept a Disk"
     );
     assert!(
@@ -140,13 +140,13 @@ fn void_gap_with_disc_grouping() {
     let mut album =
         Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
-    album.add_disk(Some("Disc 1".to_string()));
+    album.add_disk();
     album.add_void(1);
     album.add_track(Track::new(PathBuf::from("b.mp3")));
     album.add_track(Track::new(PathBuf::from("c.mp3")));
     album.add_void(3);
     album.add_track(Track::new(PathBuf::from("g.mp3")));
-    album.add_disk(Some("Disc 2".to_string()));
+    album.add_disk();
     album.add_track(Track::new(PathBuf::from("h.mp3")));
     album.add_track(Track::new(PathBuf::from("i.mp3")));
 
@@ -168,7 +168,7 @@ fn track_before_first_disk_is_unassigned_until_disk_moves_up() {
         Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_track(Track::new(PathBuf::from("a.mp3")));
-    album.add_disk(Some("Disc 1".to_string()));
+    album.add_disk();
     album.add_track(Track::new(PathBuf::from("b.mp3")));
 
     let rendered: Vec<String> = album
