@@ -26,19 +26,19 @@ pub enum TrackEditOutput {
 pub struct TrackEditDialog {
     index: usize,
     edit: TrackEdit,
-    errors: Vec<TrackFieldError>,
 }
 
 pub struct TrackEditWidgets {
-    error_label: gtk::Label,
+    toast_overlay: adw::ToastOverlay,
 }
 
-impl SimpleComponent for TrackEditDialog {
+impl Component for TrackEditDialog {
     type Input = TrackEditMsg;
     type Output = TrackEditOutput;
     type Init = (usize, TrackEdit);
     type Root = adw::Dialog;
     type Widgets = TrackEditWidgets;
+    type CommandOutput = ();
 
     fn init_root() -> Self::Root {
         adw::Dialog::builder()
@@ -98,12 +98,13 @@ impl SimpleComponent for TrackEditDialog {
         entry_row!("Lyricist", lyricist, LyricistChanged);
         entry_row!("Remixer", remixer, RemixerChanged);
 
-        let error_label = gtk::Label::builder()
-            .css_classes(["error"])
-            .wrap(true)
-            .halign(gtk::Align::Start)
-            .visible(false)
             .build();
+        let toast_overlay = adw::ToastOverlay::new();
+        let scroller = gtk::ScrolledWindow::builder()
+            .vexpand(true)
+            .child(&group)
+            .build();
+        toast_overlay.set_child(Some(&scroller));
 
         let content_box = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -113,31 +114,29 @@ impl SimpleComponent for TrackEditDialog {
             .margin_start(12)
             .margin_end(12)
             .build();
-        content_box.append(&group);
-        content_box.append(&error_label);
-
-        let scroller = gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .child(&content_box)
-            .build();
+        content_box.append(&toast_overlay);
 
         let toolbar_view = adw::ToolbarView::new();
         toolbar_view.add_top_bar(&header);
-        toolbar_view.set_content(Some(&scroller));
+        toolbar_view.set_content(Some(&content_box));
 
         root.set_child(Some(&toolbar_view));
 
-        let model = TrackEditDialog {
-            index,
-            edit,
-            errors: Vec::new(),
+        let model = TrackEditDialog { index, edit };
+        let widgets = TrackEditWidgets {
+            toast_overlay,
         };
-        let widgets = TrackEditWidgets { error_label };
 
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
+    fn update_with_view(
+        &mut self,
+        widgets: &mut Self::Widgets,
+        message: Self::Input,
+        sender: ComponentSender<Self>,
+        _root: &Self::Root,
+    ) {
         match message {
             TrackEditMsg::TitleChanged(v) => self.edit.title = v,
             TrackEditMsg::GenreChanged(v) => self.edit.genre = v,
@@ -157,28 +156,23 @@ impl SimpleComponent for TrackEditDialog {
                                 edit: self.edit.clone(),
                             })
                             .ok();
+                        return;
                     }
-                    Err(errors) => self.errors = errors,
+                    Err(errors) => {
+                        let text: String = errors
+                            .iter()
+                            .map(|e: &TrackFieldError| e.to_string())
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        widgets
+                            .toast_overlay
+                            .add_toast(adw::Toast::builder().title(text).build());
+                    }
                 }
             }
             TrackEditMsg::Cancel => {
                 sender.output(TrackEditOutput::Cancelled).ok();
             }
-        }
-    }
-
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
-        if self.errors.is_empty() {
-            widgets.error_label.set_visible(false);
-        } else {
-            let text = self
-                .errors
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<_>>()
-                .join("\n");
-            widgets.error_label.set_label(&text);
-            widgets.error_label.set_visible(true);
         }
     }
 }
