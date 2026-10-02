@@ -418,12 +418,6 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
     for (idx, (item, position)) in album.get_items().iter().zip(positions).enumerate() {
         let row: gtk::Widget = match item {
             AlbumItem::Disk { title } => {
-            AlbumItem::Disk { title } => gtk::Label::builder()
-                .label(title.clone().unwrap_or_else(|| "Disk".to_string()))
-                .halign(gtk::Align::Start)
-                .css_classes(["heading"])
-                .build()
-                .upcast(),
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
                 let label = gtk::Label::builder()
                     .label(title.clone().unwrap_or_else(|| "Disk".to_string()))
@@ -431,6 +425,22 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     .hexpand(true)
                     .css_classes(["heading"])
                     .build();
+                let move_up_button = gtk::Button::from_icon_name("go-up-symbolic");
+                move_up_button.set_visible(idx > 0);
+                {
+                    let sender = sender.clone();
+                    move_up_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Up));
+                    });
+                }
+                let move_down_button = gtk::Button::from_icon_name("go-down-symbolic");
+                move_down_button.set_visible(idx < album.get_items().len() - 1);
+                {
+                    let sender = sender.clone();
+                    move_down_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Down));
+                    });
+                }
                 let delete_button = gtk::Button::from_icon_name("user-trash-symbolic");
                 delete_button.add_css_class("destructive-action");
                 {
@@ -440,8 +450,11 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     });
                 }
                 row_box.append(&label);
+                row_box.append(&move_up_button);
+                row_box.append(&move_down_button);
                 row_box.append(&delete_button);
                 row_box.upcast()
+            }
             AlbumItem::Track(track) => {
                 let pos_str = position.map(|p| p.to_string()).unwrap_or_default();
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -496,6 +509,22 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     .hexpand(true)
                     .css_classes(["dim-label"])
                     .build();
+                let move_up_button = gtk::Button::from_icon_name("go-up-symbolic");
+                move_up_button.set_visible(idx > 0);
+                {
+                    let sender = sender.clone();
+                    move_up_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Up));
+                    });
+                }
+                let move_down_button = gtk::Button::from_icon_name("go-down-symbolic");
+                move_down_button.set_visible(idx < album.get_items().len() - 1);
+                {
+                    let sender = sender.clone();
+                    move_down_button.connect_clicked(move |_| {
+                        sender.input(AppMsg::MoveItem(idx, Direction::Down));
+                    });
+                }
                 let delete_button = gtk::Button::from_icon_name("user-trash-symbolic");
                 delete_button.add_css_class("destructive-action");
                 {
@@ -505,6 +534,8 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     });
                 }
                 row_box.append(&label);
+                row_box.append(&move_up_button);
+                row_box.append(&move_down_button);
                 row_box.append(&delete_button);
                 row_box.upcast()
             }
