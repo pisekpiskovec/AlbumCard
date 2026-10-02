@@ -21,7 +21,7 @@ pub struct Album {
 
 #[derive(Debug, Clone)]
 pub enum AlbumItem {
-    Disk { title: Option<String> },
+    Disk,
     Track(Track),
     Void { size: u32 },
 }
@@ -90,11 +90,11 @@ impl Album {
     }
 
     /// Returns `false` if `disk` isn't allowed by the current mode.
-    pub fn add_disk(&mut self, title: Option<String>) -> bool {
+    pub fn add_disk(&mut self) -> bool {
         if !self.can_add(AlbumItemType::Disk) {
             return false;
         }
-        self.items.push(AlbumItem::Disk { title });
+        self.items.push(AlbumItem::Disk);
         true
     }
 
@@ -122,7 +122,7 @@ impl Album {
         let mut track_cnt: u32 = 0;
         for item in self.items.iter() {
             match item {
-                AlbumItem::Disk { title: _ } => continue,
+                AlbumItem::Disk => continue,
                 AlbumItem::Track(_track) => track_cnt += 1,
                 AlbumItem::Void { size } => track_cnt += size,
             }
@@ -155,7 +155,7 @@ impl Album {
         let has_disks = self
             .items
             .iter()
-            .any(|i| matches!(i, AlbumItem::Disk { .. }));
+            .any(|i| matches!(i, AlbumItem::Disk));
         let disc_label = |disk_no: u32| {
             if !has_disks {
                 DiscLabel::Ungrouped
@@ -223,5 +223,16 @@ impl Album {
     /// Mutable access to the item at `index`
     pub fn get_item_mut(&mut self, index: usize) -> Option<&mut AlbumItem> {
         self.items.get_mut(index)
+    }
+
+    pub fn disk_number_at(&self, index: usize) -> Option<u32> {
+        if !matches!(self.items.get(index), Some(AlbumItem::Disk)) {
+            return None;
+        }
+        let count = self.items[..=index]
+            .iter()
+            .filter(|item| matches!(item, AlbumItem::Disk))
+            .count();
+        Some(count as u32)
     }
 }
