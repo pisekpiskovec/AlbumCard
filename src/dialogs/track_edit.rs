@@ -96,11 +96,6 @@ impl Component for TrackEditDialog {
 
         entry_row!("Title", title, TitleChanged);
         entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
-        entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
-        entry_row!("Performer", performer, PerformerChanged);
-        entry_row!("Composer", composer, ComposerChanged);
-        entry_row!("Lyricist", lyricist, LyricistChanged);
-        entry_row!("Remixer", remixer, RemixerChanged);
 
         let calendar = gtk::Calendar::new();
         if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
@@ -153,6 +148,12 @@ impl Component for TrackEditDialog {
             .build();
         release_date_row.add_suffix(&release_date_button);
         group.add(&release_date_row);
+
+        entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
+        entry_row!("Performer", performer, PerformerChanged);
+        entry_row!("Composer", composer, ComposerChanged);
+        entry_row!("Lyricist", lyricist, LyricistChanged);
+        entry_row!("Remixer", remixer, RemixerChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder()
