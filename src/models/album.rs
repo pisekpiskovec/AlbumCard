@@ -2,9 +2,10 @@ use crate::models::track::{DiscLabel, Track};
 use chrono::NaiveDate;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlbumMode {
     Single,
+    #[default]
     Ep,
 }
 
@@ -37,6 +38,15 @@ pub enum AlbumItemType {
 pub struct AlbumItemPosition {
     pub disk: DiscLabel,
     pub track: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AlbumEdit {
+    pub title: String,
+    pub album_artist: String,
+    pub release_date: String,
+    pub genre: String,
+    pub mode: AlbumMode,
 }
 
 impl std::fmt::Display for AlbumItemPosition {
@@ -152,10 +162,7 @@ impl Album {
     /// Per-item display position, parallel to `get_items()`. `None` for Disk
     /// headers (they render as a section label, not a numbered row).
     pub fn item_positions(&self) -> Vec<Option<AlbumItemPosition>> {
-        let has_disks = self
-            .items
-            .iter()
-            .any(|i| matches!(i, AlbumItem::Disk));
+        let has_disks = self.items.iter().any(|i| matches!(i, AlbumItem::Disk));
         let disc_label = |disk_no: u32| {
             if !has_disks {
                 DiscLabel::Ungrouped
@@ -171,7 +178,7 @@ impl Album {
         self.items
             .iter()
             .map(|item| match item {
-                AlbumItem::Disk { .. } => {
+                AlbumItem::Disk => {
                     disk_no += 1;
                     track_no = 0;
                     None
@@ -234,5 +241,47 @@ impl Album {
             .filter(|item| matches!(item, AlbumItem::Disk))
             .count();
         Some(count as u32)
+    }
+
+    pub fn could_be_single(&self) -> bool {
+        let track_count = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
+        let has_disk = self.items.iter().any(|i| matches!(i, AlbumItem::Disk));
+        let has_void = self.items.iter().any(|i| matches!(i, AlbumItem::Void { .. }));
+        track_count <= 1 && !has_disk && !has_void
+    }
+
+    pub fn apply_edit(&mut self, edit: AlbumEdit) -> Result<(), Vec<String>> {
+        let mut errors = Vec::new();
+        let title = edit.title.trim().to_string();
+        if title.is_empty() {
+            errors.push("Title cannot be empty".to_string());
+        }
+
+        let release_date = match edit.release_date.trim() {
+            "" => None,
+            s => match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                Ok(d) => Some(d),
+                Err(_) => {
+                    errors.push("Release date must be in YYYY-MM-DD format".to_string());
+                    None
+                }
+            }
+        };
+
+        if matches!(edit.mode, AlbumMode::Single) && !self.could_be_single() {
+            errors.push("Switching to Single requires removing all Disks/Voids and reducing to at most one Track first".to_string());
+        }
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        self.title = title;
+        self.album_artist = edit.album_artist.trim().to_string();
+        self.release_date = release_date;
+        self.genre = edit.genre.trim().to_string();
+        self.mode = edit.mode;
+
+        Ok(())
     }
 }
