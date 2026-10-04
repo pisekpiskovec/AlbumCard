@@ -14,8 +14,6 @@ use crate::models::{
     track::Track,
 };
 
-const DEFAULT_VOID_SIZE: u32 = 1;
-
 #[derive(Debug)]
 enum Direction {
     Up,
@@ -295,7 +293,7 @@ impl SimpleComponent for AppModel {
                     self.album.add_track(Track::new(PathBuf::new()));
                 }
                 AlbumItemType::Void => {
-                    self.album.add_void(DEFAULT_VOID_SIZE);
+                    self.album.add_void(config::DEFAULT_VOID_SIZE);
                 }
             },
             AppMsg::NewAlbum => {
@@ -397,7 +395,7 @@ fn format_album_meta(album: &Album) -> String {
         let disk_count = album
             .get_items()
             .iter()
-            .filter(|item| matches!(item, AlbumItem::Disk { .. }))
+            .filter(|item| matches!(item, AlbumItem::Disk))
             .count();
         parts.push(format!("{track_count}/{disk_count}"));
     }
