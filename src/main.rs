@@ -1,6 +1,7 @@
 mod config;
 mod dialogs;
 mod models;
+mod storage;
 mod tests;
 
 use adw::prelude::*;

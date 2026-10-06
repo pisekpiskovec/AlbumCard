@@ -1,16 +1,19 @@
 use crate::models::track::{DiscLabel, Track};
 use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum AlbumMode {
     Single,
     #[default]
     Ep,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Album {
+    pub id: Uuid,
     pub(crate) mode: AlbumMode,
     pub(crate) title: String,
     pub(crate) album_artist: String,
@@ -20,7 +23,7 @@ pub struct Album {
     pub(crate) art_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AlbumItem {
     Disk,
     Track(Track),
@@ -77,6 +80,7 @@ impl Album {
             s => Some(NaiveDate::parse_from_str(s, "%Y-%m-%d")?),
         };
         Ok(Self {
+            id: Uuid::new_v4(),
             mode,
             title: title.to_string(),
             album_artist: artist.to_string(),
@@ -283,5 +287,13 @@ impl Album {
         self.mode = edit.mode;
 
         Ok(())
+    }
+
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+
+    pub fn from_json(json: &str) -> serde_json::Result<Self> {
+        serde_json::from_str(json)
     }
 }
