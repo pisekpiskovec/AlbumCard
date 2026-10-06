@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
-use crate::models::{album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*}, track::{DiscLabel, Track, TrackEdit, TrackFieldError}};
+use crate::models::{
+    album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
+    track::{DiscLabel, Track, TrackEdit, TrackFieldError},
+};
 
 #[test]
 fn parsing_album_items() {
@@ -55,10 +58,7 @@ fn single_mode_rejects_disks_and_a_second_track() {
     )
     .expect("valid date");
 
-    assert!(
-        !album.add_disk(),
-        "Single must not accept a Disk"
-    );
+    assert!(!album.add_disk(), "Single must not accept a Disk");
     assert!(
         album.add_track(Track::new(PathBuf::from("a.mp3"))),
         "First track should succeed"
@@ -224,10 +224,7 @@ fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
     album.add_track(Track::new(PathBuf::from("a.mp3")));
 
     let removed = album.remove_item(0);
-    assert!(matches!(
-        removed,
-        Some(AlbumItem::Void { size: 4 })
-    ));
+    assert!(matches!(removed, Some(AlbumItem::Void { size: 4 })));
     assert_eq!(album.get_items().len(), 1);
     assert_eq!(
         album.get_length(),
@@ -359,4 +356,38 @@ fn track_artist_and_genre_fall_back_to_the_album_when_unset() {
     featured_track.genre = Some("Electronic".to_string());
     assert_eq!(featured_track.effective_artist(&album), "Mili");
     assert_eq!(featured_track.effective_genre(&album), "Electronic");
+}
+
+#[test]
+fn album_round_trips_through_json() {
+    let mut album = Album::new(
+        Ep,
+        "Limbus Company OST",
+        "ProjectMoon",
+        "",
+        "Soundtrack",
+        None,
+    )
+    .expect("valid date");
+
+    album.add_disk();
+    album.add_void(1);
+    let mut track = Track::new(PathBuf::from("b.mp3"));
+    track.title = "B Song".to_string();
+    track.artist = Some("Studio EIM".to_string());
+    album.add_track(track);
+    album.add_void(3);
+
+    let json = album.to_json().expect("serialization should succeed");
+    let restored = Album::from_json(&json).expect("deserialization should succeed");
+
+    assert_eq!(restored, album);
+    assert_eq!(restored.id, album.id);
+}
+
+#[test]
+fn each_album_gets_a_distinct_id() {
+    let a = Album::new(Single, "A", "Artist", "", "Genre", None).expect("valid date");
+    let b = Album::new(Single, "B", "Brtist", "", "Genre", None).expect("valid date");
+    assert_ne!(a.id, b.id);
 }

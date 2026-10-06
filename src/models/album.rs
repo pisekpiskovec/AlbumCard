@@ -11,7 +11,7 @@ pub enum AlbumMode {
     Ep,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Album {
     pub id: Uuid,
     pub(crate) mode: AlbumMode,
@@ -23,7 +23,7 @@ pub struct Album {
     pub(crate) art_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlbumItem {
     Disk,
     Track(Track),

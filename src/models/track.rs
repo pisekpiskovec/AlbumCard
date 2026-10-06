@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::models::album::Album;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Track {
     pub(crate) file_path: PathBuf,
     pub(crate) title: String,
