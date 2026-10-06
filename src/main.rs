@@ -8,7 +8,9 @@ use relm4::prelude::*;
 use std::path::PathBuf;
 
 use crate::config::VERSION;
+use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
 use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput};
+use crate::models::album::AlbumEdit;
 use crate::models::{
     album::{Album, AlbumItem, AlbumItemType, AlbumMode},
     track::Track,
@@ -24,13 +26,16 @@ struct AppModel {
     album: Album,
     window: adw::Window,
     track_edit_dialog: Option<Controller<TrackEditDialog>>,
+    album_edit_dialog: Option<Controller<AlbumEditDialog>>,
 }
 
 #[derive(Debug)]
 enum AppMsg {
     About,
     AddItem(AlbumItemType),
-    NewAlbum,
+    NewAlbumRequest,
+    EditAlbumRequest,
+    AlbumEditResult(AlbumEditOutput),
     EditTrackRequest(usize),
     TrackEditResult(TrackEditOutput),
     MoveItem(usize, Direction),
@@ -129,7 +134,7 @@ impl SimpleComponent for AppModel {
         {
             let sender = sender.clone();
             new_album_button.connect_clicked(move |_| {
-                sender.input(AppMsg::NewAlbum);
+                sender.input(AppMsg::NewAlbumRequest);
             });
         }
 
@@ -201,6 +206,12 @@ impl SimpleComponent for AppModel {
         content_header.pack_start(&add_button);
 
         let edit_album_button = gtk::Button::from_icon_name("document-edit-symbolic");
+        {
+            let sender = sender.clone();
+            edit_album_button.connect_clicked(move |_| {
+                sender.input(AppMsg::EditAlbumRequest);
+            });
+        }
         content_header.pack_start(&edit_album_button);
 
         let save_button = gtk::Button::from_icon_name("document-save-symbolic");
@@ -271,6 +282,7 @@ impl SimpleComponent for AppModel {
             album,
             window: root.clone(),
             track_edit_dialog: None,
+            album_edit_dialog: None,
         };
         let widgets = AppWidgets {
             split_view,
@@ -296,8 +308,72 @@ impl SimpleComponent for AppModel {
                     self.album.add_void(config::DEFAULT_VOID_SIZE);
                 }
             },
-            AppMsg::NewAlbum => {
-                eprintln!("TODO: open the new-album dialog");
+            AppMsg::NewAlbumRequest => {
+                let edit = AlbumEdit {
+                    title: String::new(),
+                    album_artist: String::new(),
+                    release_date: String::new(),
+                    genre: String::new(),
+                    mode: AlbumMode::Ep,
+                };
+                let dialog = AlbumEditDialog::builder()
+                    .launch((AlbumEditPurpose::New, edit, true))
+                    .forward(sender.input_sender(), AppMsg::AlbumEditResult);
+                dialog.widget().present(Some(&self.window));
+                self.album_edit_dialog = Some(dialog);
+            }
+            AppMsg::EditAlbumRequest => {
+                let edit = AlbumEdit {
+                    title: self.album.title.clone(),
+                    album_artist: self.album.album_artist.clone(),
+                    release_date: self
+                        .album
+                        .release_date
+                        .map(|d| d.format("%Y-%m-%d").to_string())
+                        .unwrap_or_default(),
+                    genre: self.album.genre.clone(),
+                    mode: self.album.mode,
+                };
+                let could_be_single = self.album.could_be_single();
+                let dialog = AlbumEditDialog::builder()
+                    .launch((AlbumEditPurpose::Edit, edit, could_be_single))
+                    .forward(sender.input_sender(), AppMsg::AlbumEditResult);
+                dialog.widget().present(Some(&self.window));
+                self.album_edit_dialog = Some(dialog);
+            }
+            AppMsg::AlbumEditResult(AlbumEditOutput::Saved { purpose, edit }) => {
+                match purpose {
+                    AlbumEditPurpose::New => {
+                        match Album::new(
+                            edit.mode,
+                            &edit.title,
+                            &edit.album_artist,
+                            &edit.release_date,
+                            &edit.genre,
+                            None,
+                        ) {
+                            Ok(new_album) => self.album = new_album,
+                            Err(e) => {
+                                eprintln!("unexpected error creating album: {e}");
+                            }
+                        }
+                    }
+                    AlbumEditPurpose::Edit => {
+                        if let Err(errors) = self.album.apply_edit(edit) {
+                            eprintln!(
+                                "unecpected validation failure applying album edit: {errors:?}"
+                            );
+                        }
+                    }
+                }
+                if let Some(dialog) = self.album_edit_dialog.take() {
+                    dialog.widget().close();
+                }
+            }
+            AppMsg::AlbumEditResult(AlbumEditOutput::Cancelled) => {
+                if let Some(dialog) = self.album_edit_dialog.take() {
+                    dialog.widget().close();
+                }
             }
             AppMsg::EditTrackRequest(index) => {
                 let Some(AlbumItem::Track(track)) = self.album.get_items().get(index) else {
