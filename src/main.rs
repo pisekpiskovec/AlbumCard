@@ -7,6 +7,7 @@ mod tests;
 use adw::prelude::*;
 use relm4::prelude::*;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 use crate::config::VERSION;
 use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
@@ -25,6 +26,7 @@ enum Direction {
 
 struct AppModel {
     album: Album,
+    sidebar_albums: Vec<(Uuid, String)>,
     window: adw::Window,
     track_edit_dialog: Option<Controller<TrackEditDialog>>,
     album_edit_dialog: Option<Controller<AlbumEditDialog>>,
@@ -42,10 +44,13 @@ enum AppMsg {
     MoveItem(usize, Direction),
     DeleteItem(usize),
     SetVoidSize(usize, u32),
+    OpenAlbum(Uuid),
+    SaveAlbum,
 }
 
 struct AppWidgets {
     split_view: adw::NavigationSplitView,
+    sidebar_list: gtk::ListBox,
     album_title_label: gtk::Label,
     album_artist_label: gtk::Label,
     album_meta_label: gtk::Label,
@@ -72,7 +77,7 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let mut album = Album::new(
+        /* let mut album = Album::new(
             AlbumMode::Ep,
             "To Kill A Living Book -for Library Of Ruina-",
             "Mili",
@@ -89,6 +94,12 @@ impl SimpleComponent for AppModel {
         ));
         track.title = "Children of the City".to_string();
         album.add_track(track);
+
+        if let Err(e) = storage::save_album(&album) {
+            eprintln!("failed to save demo album: {e}");
+        } */
+        let album = Album::new(AlbumMode::Ep, "", "", "", "", None).expect("valid empty album");
+        let sidebar_albums = storage::list_albums();
 
         let split_view = adw::NavigationSplitView::new();
 
@@ -143,7 +154,7 @@ impl SimpleComponent for AppModel {
             .selection_mode(gtk::SelectionMode::Single)
             .css_classes(["boxed-list"])
             .build();
-        sidebar_list.append(&gtk::Label::new(Some(&album.title)));
+        populate_sidebar(&sidebar_list, &sidebar_albums, album.id, sender.clone());
 
         let sidebar_content_box = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -217,6 +228,12 @@ impl SimpleComponent for AppModel {
 
         let save_button = gtk::Button::from_icon_name("document-save-symbolic");
         save_button.add_css_class("suggested-action");
+        {
+            let sender = sender.clone();
+            save_button.connect_clicked(move |_| {
+                sender.input(AppMsg::SaveAlbum);
+            });
+        }
         content_header.pack_start(&save_button);
 
         let art_icon = gtk::Image::from_icon_name("folder-music-symbolic");
@@ -267,7 +284,7 @@ impl SimpleComponent for AppModel {
         let content_toolbar = adw::ToolbarView::new();
         content_toolbar.add_top_bar(&content_header);
         content_toolbar.set_content(Some(&content_box));
-        let content_page = adw::NavigationPage::new(&content_toolbar, &album.title);
+        let content_page = adw::NavigationPage::new(&content_toolbar, &String::new());
 
         split_view.set_sidebar(Some(&sidebar_page));
         split_view.set_content(Some(&content_page));
@@ -284,6 +301,7 @@ impl SimpleComponent for AppModel {
             window: root.clone(),
             track_edit_dialog: None,
             album_edit_dialog: None,
+            sidebar_albums,
         };
         let widgets = AppWidgets {
             split_view,
@@ -291,6 +309,7 @@ impl SimpleComponent for AppModel {
             album_artist_label,
             album_meta_label,
             tracklist_box,
+            sidebar_list,
         };
 
         ComponentParts { model, widgets }
@@ -353,7 +372,13 @@ impl SimpleComponent for AppModel {
                             &edit.genre,
                             None,
                         ) {
-                            Ok(new_album) => self.album = new_album,
+                            Ok(new_album) => {
+                                if let Err(e) = crate::storage::save_album(&new_album){
+                                    eprintln!("failed to save new album: {e}");
+                                }
+                                self.album = new_album;
+                                self.sidebar_albums = crate::storage::list_albums();
+                            }
                             Err(e) => {
                                 eprintln!("unexpected error creating album: {e}");
                             }
@@ -439,6 +464,21 @@ impl SimpleComponent for AppModel {
                     *void_size = size.max(1);
                 }
             }
+            AppMsg::OpenAlbum(id) => {
+                if id == self.album.id {
+                    return;
+                }
+                match crate::storage::load_album(id) {
+                    Ok(loaded) => self.album = loaded,
+                    Err(e) => eprintln!("failed to load album {id}: {e}"),
+                }
+            }
+            AppMsg::SaveAlbum => {
+                if let Err(e) = crate::storage::save_album(&self.album) {
+                    eprintln!("failed to save album: {e}");
+                }
+                self.sidebar_albums = crate::storage::list_albums();
+            }
         }
     }
 
@@ -450,7 +490,13 @@ impl SimpleComponent for AppModel {
         widgets
             .album_meta_label
             .set_label(&format_album_meta(&self.album));
-        populate_tracklist(&widgets.tracklist_box, &self.album, sender);
+        populate_sidebar(
+            &widgets.sidebar_list,
+            &self.sidebar_albums,
+            self.album.id,
+            sender.clone(),
+        );
+        populate_tracklist(&widgets.tracklist_box, &self.album, sender.clone());
         let _ = &widgets.split_view;
     }
 }
@@ -486,6 +532,41 @@ fn format_album_meta(album: &Album) -> String {
     parts.push(album.genre.clone());
 
     parts.join(" | ")
+}
+
+fn populate_sidebar(
+    list: &gtk::ListBox,
+    albums: &[(Uuid, String)],
+    current_id: Uuid,
+    sender: ComponentSender<AppModel>,
+) {
+    while let Some(child) = list.first_child() {
+        list.remove(&child);
+    }
+
+    for (id, title) in albums {
+        let label_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        let label = gtk::Label::builder()
+            .label(title)
+            .halign(gtk::Align::Start)
+            .margin_top(6)
+            .margin_bottom(6)
+            .margin_start(6)
+            .margin_end(6)
+            .build();
+        if *id == current_id {
+            label.add_css_class("heading");
+        }
+        let click = gtk::GestureClick::new();
+        let sender = sender.clone();
+        let id = *id;
+        click.connect_released(move |_gesture, _n_press, _x, _y| {
+            sender.input(AppMsg::OpenAlbum(id));
+        });
+        label_box.append(&label);
+        label_box.add_controller(click);
+        list.append(&label_box);
+    }
 }
 
 fn clear_children(container: &gtk::Box) {
