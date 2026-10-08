@@ -87,24 +87,21 @@ impl SimpleComponent for AppModel {
         let split_view = adw::OverlaySplitView::new();
 
         // Sidebar pane
-        let ham_popover = gtk::Popover::new();
-        let ham_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        let about_button = gtk::Button::builder()
-            .label("About AlbumCard")
-            .css_classes(["flat"])
-            .halign(gtk::Align::Start)
-            .build();
-        let s = sender.clone();
-        let popover = ham_popover.clone();
-        about_button.connect_clicked(move |_| {
-            s.input(AppMsg::About);
-            popover.popdown();
-        });
-        ham_popover_box.append(&about_button);
-        ham_popover.set_child(Some(&ham_popover_box));
+        let ham_menu = gtk::gio::Menu::new();
+        ham_menu.append(Some("About AlbumCard"), Some("app.about"));
+        let action_about = gtk::gio::SimpleAction::new("about", None);
+        {
+            let sender = sender.clone();
+            action_about.connect_activate(move |_, _| {
+                sender.input(AppMsg::About);
+            });
+        }
+        relm4::main_application().add_action(&action_about);
         let hamburger = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
-            .popover(&ham_popover)
+            .menu_model(&ham_menu)
+            .primary(true)
+            .tooltip_text("Main Menu")
             .build();
 
         let sidebar_header = adw::HeaderBar::new();
