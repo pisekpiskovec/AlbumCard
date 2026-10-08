@@ -55,7 +55,7 @@ enum AppMsg {
 }
 
 struct AppWidgets {
-    split_view: adw::NavigationSplitView,
+    split_view: adw::OverlaySplitView,
     sidebar_list: gtk::ListBox,
     album_title_label: gtk::Label,
     album_artist_label: gtk::Label,
@@ -83,7 +83,7 @@ impl SimpleComponent for AppModel {
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
-        let split_view = adw::NavigationSplitView::new();
+        let split_view = adw::OverlaySplitView::new();
 
         // Sidebar pane
         let ham_popover = gtk::Popover::new();
@@ -106,17 +106,8 @@ impl SimpleComponent for AppModel {
             .popover(&ham_popover)
             .build();
 
-        let collapse_button = gtk::Button::from_icon_name("sidebar-show-symbolic");
-        {
-            let split_view = split_view.clone();
-            collapse_button.connect_clicked(move |_| {
-                split_view.set_collapsed(!split_view.is_collapsed());
-            });
-        }
-
         let sidebar_header = adw::HeaderBar::new();
-        sidebar_header.pack_start(&hamburger);
-        sidebar_header.pack_end(&collapse_button);
+        sidebar_header.pack_end(&hamburger);
         sidebar_header.set_title_widget(Some(&adw::WindowTitle::new("AlbumCard", "")));
 
         let new_album_content = adw::ButtonContent::builder()
@@ -156,6 +147,15 @@ impl SimpleComponent for AppModel {
 
         // Content pane
         let content_header = adw::HeaderBar::new();
+
+        let collapse_button = gtk::Button::from_icon_name("sidebar-show-symbolic");
+        {
+            let split_view = split_view.clone();
+            collapse_button.connect_clicked(move |_| {
+                split_view.set_collapsed(!split_view.is_collapsed());
+            });
+        }
+        content_header.pack_start(&collapse_button);
 
         let undo_button = gtk::Button::from_icon_name("edit-undo-symbolic");
         undo_button.set_sensitive(false);
