@@ -4,9 +4,11 @@ mod models;
 mod storage;
 mod tests;
 
-use adw::prelude::*;
-use relm4::prelude::*;
 use std::path::PathBuf;
+
+use adw::prelude::*;
+use gtk::{FileDialog, FileFilter};
+use relm4::prelude::*;
 use uuid::Uuid;
 
 use crate::config::VERSION;
@@ -47,6 +49,7 @@ enum AppMsg {
     SetVoidSize(usize, u32),
     OpenAlbum(Uuid),
     SaveAlbum,
+    TrackFileChosen(PathBuf),
 }
 
 struct AppWidgets {
@@ -303,7 +306,24 @@ impl SimpleComponent for AppModel {
                     self.album.add_disk();
                 }
                 AlbumItemType::Track => {
-                    self.album.add_track(Track::new(PathBuf::new()));
+                    let filter = FileFilter::new();
+                    filter.add_mime_type("audio/mp3");
+                    filter.set_name(Some("MP3"));
+                    let dialog = FileDialog::builder()
+                        .title("Open audio file")
+                        .default_filter(&filter)
+                        .build();
+                    if let Some(audio_dir) = dirs::audio_dir() {
+                        dialog.set_initial_folder(Some(&gtk::gio::File::for_path(audio_dir)));
+                    }
+                    let sender = sender.clone();
+                    dialog.open(Some(&self.window), None::<&gtk::gio::Cancellable>, move |dialog_result| {
+                        if let Ok(file) = dialog_result
+                            && let Some(path) = file.path()
+                        {
+                            sender.input(AppMsg::TrackFileChosen(path));
+                        }
+                    });
                 }
                 AlbumItemType::Void => {
                     self.album.add_void(config::DEFAULT_VOID_SIZE);
@@ -465,6 +485,9 @@ impl SimpleComponent for AppModel {
                     eprintln!("failed to save album: {e}");
                 }
                 self.sidebar_albums = crate::storage::list_albums();
+            }
+            AppMsg::TrackFileChosen(file_path) => {
+                self.album.add_track(Track::new(file_path));
             }
         }
     }
