@@ -237,6 +237,7 @@ impl SimpleComponent for AppModel {
         let album_title_label = gtk::Label::builder()
             .halign(gtk::Align::Start)
             .css_classes(["title-1"])
+            .ellipsize(gtk::pango::EllipsizeMode::Middle)
             .build();
         let album_artist_label = gtk::Label::builder().halign(gtk::Align::Start).build();
         let album_meta_label = gtk::Label::builder()
@@ -662,6 +663,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                     .label(format!("{pos_str}. {}", track.title))
                     .hexpand(true)
                     .halign(gtk::Align::Start)
+                    .ellipsize(gtk::pango::EllipsizeMode::Middle)
                     .build();
                 let move_up_button = gtk::Button::from_icon_name("go-up-symbolic");
                 move_up_button.set_visible(idx > 0);
