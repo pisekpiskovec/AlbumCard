@@ -50,6 +50,8 @@ enum AppMsg {
     OpenAlbum(Uuid),
     SaveAlbum,
     TrackFileChosen(PathBuf),
+    LoadImageRequest,
+    ImageFileChosen(PathBuf),
 }
 
 struct AppWidgets {
@@ -59,6 +61,7 @@ struct AppWidgets {
     album_artist_label: gtk::Label,
     album_meta_label: gtk::Label,
     tracklist_box: gtk::Box,
+    art_placeholder: gtk::Frame,
 }
 
 impl SimpleComponent for AppModel {
@@ -222,6 +225,14 @@ impl SimpleComponent for AppModel {
             .height_request(96)
             .child(&art_icon)
             .build();
+        {
+            let sender = sender.clone();
+            let click = gtk::GestureClick::new();
+            click.connect_released(move |_gesture, _n_press, _x, _y| {
+                sender.input(AppMsg::LoadImageRequest);
+            });
+            art_placeholder.add_controller(click);
+        }
 
         let album_title_label = gtk::Label::builder()
             .halign(gtk::Align::Start)
@@ -294,6 +305,7 @@ impl SimpleComponent for AppModel {
             album_meta_label,
             tracklist_box,
             sidebar_list,
+            art_placeholder,
         };
 
         ComponentParts { model, widgets }
@@ -489,6 +501,26 @@ impl SimpleComponent for AppModel {
             AppMsg::TrackFileChosen(file_path) => {
                 self.album.add_track(Track::new(file_path));
             }
+            AppMsg::LoadImageRequest => {
+                let filter = FileFilter::new();
+                filter.add_mime_types(&["image/png", "image/jpeg", "image/webp"]);
+                let dialog = FileDialog::builder().title("Open").default_filter(&filter).build();
+                if let Some(picture_dir) = dirs::picture_dir() {
+                    dialog.set_initial_folder(Some(&gtk::gio::File::for_path(picture_dir)));
+                }
+                let sender = sender.clone();
+                dialog.open(Some(&self.window), None::<&gtk::gio::Cancellable>, move |dialog_result| {
+                    if let Ok(file) = dialog_result
+                        && let Some(path) = file.path()
+                    {
+                        sender.input(AppMsg::ImageFileChosen(path));
+                    }
+                });
+                self.album.art_path = None;
+            }
+            AppMsg::ImageFileChosen(art_path) => {
+                self.album.art_path = Some(art_path);
+            }
         }
     }
 
@@ -498,6 +530,16 @@ impl SimpleComponent for AppModel {
         widgets.album_meta_label.set_label(&format_album_meta(&self.album));
         populate_sidebar(&widgets.sidebar_list, &self.sidebar_albums, self.album.id, sender.clone());
         populate_tracklist(&widgets.tracklist_box, &self.album, sender.clone());
+        let art_icon = match self.album.art_path {
+            Some(ref path) => gtk::Image::from_file(path),
+            None => gtk::Image::from_icon_name("folder-music-symbolic"),
+        };
+        if self.album.art_path.is_none() {
+            art_icon.set_pixel_size(48);
+        } else {
+            art_icon.set_pixel_size(96);
+        }
+        widgets.art_placeholder.set_child(Some(&art_icon));
         let _ = &widgets.split_view;
     }
 }
