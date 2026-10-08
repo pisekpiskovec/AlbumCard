@@ -62,6 +62,7 @@ struct AppWidgets {
     album_meta_label: gtk::Label,
     tracklist_box: gtk::Box,
     art_placeholder: gtk::Frame,
+    add_popover: gtk::Popover,
 }
 
 impl SimpleComponent for AppModel {
@@ -307,6 +308,7 @@ impl SimpleComponent for AppModel {
             tracklist_box,
             sidebar_list,
             art_placeholder,
+            add_popover,
         };
 
         ComponentParts { model, widgets }
@@ -527,11 +529,16 @@ impl SimpleComponent for AppModel {
     }
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
+        // Labels
         widgets.album_title_label.set_label(&self.album.title);
         widgets.album_artist_label.set_label(&self.album.album_artist);
         widgets.album_meta_label.set_label(&format_album_meta(&self.album));
+
+        // Population
         populate_sidebar(&widgets.sidebar_list, &self.sidebar_albums, self.album.id, sender.clone());
         populate_tracklist(&widgets.tracklist_box, &self.album, sender.clone());
+
+        // Album art
         let art_icon = match self.album.art_path {
             Some(ref path) => gtk::Image::from_file(path),
             None => gtk::Image::from_icon_name("folder-music-symbolic"),
@@ -542,6 +549,30 @@ impl SimpleComponent for AppModel {
             art_icon.set_pixel_size(96);
         }
         widgets.art_placeholder.set_child(Some(&art_icon));
+
+        // Add popover
+        let add_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        for kind in self.album.allowed_item_types() {
+            let label = match kind {
+                AlbumItemType::Disk => "Disk",
+                AlbumItemType::Track => "Track",
+                AlbumItemType::Void => "Void",
+            };
+            let item_button = gtk::Button::builder()
+                .label(label)
+                .css_classes(["flat"])
+                .halign(gtk::Align::Start)
+                .build();
+            let sender = sender.clone();
+            let popover = widgets.add_popover.clone();
+            item_button.connect_clicked(move |_| {
+                sender.input(AppMsg::AddItem(kind));
+                popover.popdown();
+            });
+            add_popover_box.append(&item_button);
+        }
+        widgets.add_popover.set_child(Some(&add_popover_box));
+        
         let _ = &widgets.split_view;
     }
 }
