@@ -193,7 +193,7 @@ impl Component for AlbumEditDialog {
         release_date_row.add_suffix(&release_date_button);
         group.add(&release_date_row);
 
-        entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
+        entry_row!("Genre", genre, GenreChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
