@@ -91,6 +91,20 @@ impl Album {
         })
     }
 
+    /// Creates a new empty `Album`.
+    pub fn empty() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            mode: AlbumMode::default(),
+            title: String::new(),
+            album_artist: String::new(),
+            release_date: None,
+            genre: String::new(),
+            items: Vec::new(),
+            art_path: None,
+        }
+    }
+
     /// Item kinds this album's mode currently permits
     pub fn allowed_item_types(&self) -> Vec<AlbumItemType> {
         match self.mode {

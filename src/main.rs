@@ -77,28 +77,7 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        /* let mut album = Album::new(
-            AlbumMode::Ep,
-            "To Kill A Living Book -for Library Of Ruina-",
-            "Mili",
-            "2021-02-27",
-            "Soundtrack",
-            None,
-        )
-        .expect("hardcoded demo album should be valid");
-        let mut track = Track::new(PathBuf::from("/home/pisek/Hudba/Mili - Iron Lotus.mp3"));
-        track.title = "Iron Lotus".to_string();
-        album.add_track(track);
-        let mut track = Track::new(PathBuf::from(
-            "/home/pisek/Hudba/Mili - Children of the City.mp3",
-        ));
-        track.title = "Children of the City".to_string();
-        album.add_track(track);
-
-        if let Err(e) = storage::save_album(&album) {
-            eprintln!("failed to save demo album: {e}");
-        } */
-        let album = Album::new(AlbumMode::Ep, "", "", "", "", None).expect("valid empty album");
+        let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
         let split_view = adw::NavigationSplitView::new();
