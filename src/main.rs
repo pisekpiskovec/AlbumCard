@@ -501,6 +501,7 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::TrackFileChosen(file_path) => {
                 self.album.add_track(Track::new(file_path));
+                sender.input(AppMsg::EditTrackRequest(self.album.get_items().len() - 1));
             }
             AppMsg::LoadImageRequest => {
                 let filter = FileFilter::new();
