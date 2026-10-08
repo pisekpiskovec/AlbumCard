@@ -62,7 +62,9 @@ struct AppWidgets {
     album_meta_label: gtk::Label,
     tracklist_box: gtk::Box,
     art_placeholder: gtk::Frame,
-    add_popover: gtk::Popover,
+    add_disk_action: gtk::gio::SimpleAction,
+    add_track_action: gtk::gio::SimpleAction,
+    add_void_action: gtk::gio::SimpleAction,
 }
 
 impl SimpleComponent for AppModel {
@@ -162,32 +164,54 @@ impl SimpleComponent for AppModel {
         content_header.pack_start(&undo_button);
         content_header.pack_start(&redo_button);
 
-        let add_popover = gtk::Popover::new();
-        let add_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let add_menu = gtk::gio::Menu::new();
         for kind in album.allowed_item_types() {
             let label = match kind {
                 AlbumItemType::Disk => "Disk",
                 AlbumItemType::Track => "Track",
                 AlbumItemType::Void => "Void",
             };
-            let item_button = gtk::Button::builder()
-                .label(label)
-                .css_classes(["flat"])
-                .halign(gtk::Align::Start)
-                .build();
-            let sender = sender.clone();
-            let popover = add_popover.clone();
-            item_button.connect_clicked(move |_| {
-                sender.input(AppMsg::AddItem(kind));
-                popover.popdown();
-            });
-            add_popover_box.append(&item_button);
+            let action_name = label.to_lowercase();
+            add_menu.append(Some(label), Some(&format!("app.add-{}", action_name)));
+            match kind {
+                AlbumItemType::Disk => {
+                    let add_disk_action = gtk::gio::SimpleAction::new("add-disk", None);
+                    {
+                        let sender = sender.clone();
+                        add_disk_action.connect_activate(move |_, _| {
+                            sender.input(AppMsg::AddItem(kind));
+                        });
+                    }
+                    relm4::main_application().add_action(&add_disk_action);
+                }
+                AlbumItemType::Track => {
+                    let add_track_action = gtk::gio::SimpleAction::new("add-disk", None);
+                    {
+                        let sender = sender.clone();
+                        add_track_action.connect_activate(move |_, _| {
+                            sender.input(AppMsg::AddItem(kind));
+                        });
+                    }
+                    relm4::main_application().add_action(&add_track_action);
+                }
+                AlbumItemType::Void => {
+                    let add_void_action = gtk::gio::SimpleAction::new("add-disk", None);
+                    {
+                        let sender = sender.clone();
+                        add_void_action.connect_activate(move |_, _| {
+                            sender.input(AppMsg::AddItem(kind));
+                        });
+                    }
+                    relm4::main_application().add_action(&add_void_action);
+                }
+            }
         }
-        add_popover.set_child(Some(&add_popover_box));
 
         let add_button = adw::SplitButton::builder()
             .icon_name("list-add-symbolic")
-            .popover(&add_popover)
+            // .popover(&add_popover)
+            .menu_model(&add_menu)
+            .tooltip_text("Add Item")
             .build();
         {
             let sender = sender.clone();
@@ -305,7 +329,9 @@ impl SimpleComponent for AppModel {
             tracklist_box,
             sidebar_list,
             art_placeholder,
-            add_popover,
+            add_disk_action,
+            add_track_action,
+            add_void_action,
         };
 
         ComponentParts { model, widgets }
@@ -547,29 +573,16 @@ impl SimpleComponent for AppModel {
         }
         widgets.art_placeholder.set_child(Some(&art_icon));
 
-        // Add popover
-        let add_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        for kind in self.album.allowed_item_types() {
-            let label = match kind {
-                AlbumItemType::Disk => "Disk",
-                AlbumItemType::Track => "Track",
-                AlbumItemType::Void => "Void",
-            };
-            let item_button = gtk::Button::builder()
-                .label(label)
-                .css_classes(["flat"])
-                .halign(gtk::Align::Start)
-                .build();
-            let sender = sender.clone();
-            let popover = widgets.add_popover.clone();
-            item_button.connect_clicked(move |_| {
-                sender.input(AppMsg::AddItem(kind));
-                popover.popdown();
-            });
-            add_popover_box.append(&item_button);
+        // Add menu
+        let allowed = self.album.allowed_item_types();
+        for (kind, action) in [
+            (AlbumItemType::Disk, &widgets.add_disk_action),
+            (AlbumItemType::Track, &widgets.add_track_action),
+            (AlbumItemType::Void, &widgets.add_void_action),
+        ] {
+            action.set_enabled(allowed.contains(&kind));
         }
-        widgets.add_popover.set_child(Some(&add_popover_box));
-        
+
         let _ = &widgets.split_view;
     }
 }
