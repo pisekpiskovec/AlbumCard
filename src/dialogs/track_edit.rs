@@ -52,7 +52,7 @@ impl Component for TrackEditDialog {
     fn init_root() -> Self::Root {
         adw::Dialog::builder()
             .title("Edit Track")
-            .content_height(560)
+            .content_height(570)
             .content_width(480)
             .build()
     }
@@ -89,6 +89,14 @@ impl Component for TrackEditDialog {
                 group.add(&row);
             }};
         }
+
+        let path_row = adw::ActionRow::builder()
+            .title("File Path")
+            .subtitle_selectable(true)
+            .subtitle(edit.file_path.to_str().expect("Valid path"))
+            .css_classes(vec!["property"])
+            .build();
+        group.add(&path_row);
 
         entry_row!("Title", title, TitleChanged);
         entry_row!("Genre (blank to use album genre)", genre, GenreChanged);

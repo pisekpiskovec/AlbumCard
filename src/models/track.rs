@@ -24,6 +24,7 @@ pub struct Track {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrackEdit {
+    pub file_path: PathBuf,
     pub title: String,
     pub artist: String,
     pub genre: String,
@@ -77,6 +78,7 @@ impl Track {
     /// Snapshot of this track's editable fields, formatted as the raw string.
     pub fn edit_snapshot(&self) -> TrackEdit {
         TrackEdit {
+            file_path: self.file_path.clone(),
             artist: self.artist.clone().unwrap_or_default(),
             title: self.title.clone(),
             genre: self.genre.clone().unwrap_or_default(),
