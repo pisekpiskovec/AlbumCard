@@ -73,11 +73,7 @@ impl SimpleComponent for AppModel {
             .build()
     }
 
-    fn init(
-        _init: Self::Init,
-        root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+    fn init(_init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
@@ -358,7 +354,7 @@ impl SimpleComponent for AppModel {
                             None,
                         ) {
                             Ok(new_album) => {
-                                if let Err(e) = crate::storage::save_album(&new_album){
+                                if let Err(e) = crate::storage::save_album(&new_album) {
                                     eprintln!("failed to save new album: {e}");
                                 }
                                 self.album = new_album;
@@ -371,9 +367,7 @@ impl SimpleComponent for AppModel {
                     }
                     AlbumEditPurpose::Edit => {
                         if let Err(errors) = self.album.apply_edit(edit) {
-                            eprintln!(
-                                "unecpected validation failure applying album edit: {errors:?}"
-                            );
+                            eprintln!("unecpected validation failure applying album edit: {errors:?}");
                         }
                     }
                 }
@@ -440,9 +434,7 @@ impl SimpleComponent for AppModel {
                 }
             }
             AppMsg::DeleteItem(index) => {
-                self.album
-                    .remove_item(index)
-                    .expect("Index out of bounds? Why?");
+                self.album.remove_item(index).expect("Index out of bounds? Why?");
             }
             AppMsg::SetVoidSize(index, size) => {
                 if let Some(AlbumItem::Void { size: void_size }) = self.album.get_item_mut(index) {
@@ -468,7 +460,8 @@ impl SimpleComponent for AppModel {
                     return;
                 }
                 if let Err(e) = crate::storage::save_album(&self.album) {
-                    self.toast_overlay.add_toast(adw::Toast::builder().title(format!("{e}")).build());
+                    self.toast_overlay
+                        .add_toast(adw::Toast::builder().title(format!("{e}")).build());
                     eprintln!("failed to save album: {e}");
                 }
                 self.sidebar_albums = crate::storage::list_albums();
@@ -478,18 +471,9 @@ impl SimpleComponent for AppModel {
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
         widgets.album_title_label.set_label(&self.album.title);
-        widgets
-            .album_artist_label
-            .set_label(&self.album.album_artist);
-        widgets
-            .album_meta_label
-            .set_label(&format_album_meta(&self.album));
-        populate_sidebar(
-            &widgets.sidebar_list,
-            &self.sidebar_albums,
-            self.album.id,
-            sender.clone(),
-        );
+        widgets.album_artist_label.set_label(&self.album.album_artist);
+        widgets.album_meta_label.set_label(&format_album_meta(&self.album));
+        populate_sidebar(&widgets.sidebar_list, &self.sidebar_albums, self.album.id, sender.clone());
         populate_tracklist(&widgets.tracklist_box, &self.album, sender.clone());
         let _ = &widgets.split_view;
     }
@@ -541,10 +525,7 @@ fn populate_sidebar(
     for (id, title) in albums {
         let id = *id;
         let sender = sender.clone();
-        let row = adw::ActionRow::builder()
-            .title(title)
-            .activatable(true)
-            .build();
+        let row = adw::ActionRow::builder().title(title).activatable(true).build();
         if id == current_id {
             list.select_row(Some(&row));
         }

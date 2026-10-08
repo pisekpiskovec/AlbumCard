@@ -113,7 +113,7 @@ impl Track {
                 Err(_) => {
                     errors.push(TrackFieldError::InvalidReleaseDate);
                     None
-                },
+                }
             },
         };
 

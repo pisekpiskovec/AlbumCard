@@ -1,8 +1,8 @@
 use crate::models::track::{DiscLabel, Track};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum AlbumMode {
@@ -109,11 +109,7 @@ impl Album {
     pub fn allowed_item_types(&self) -> Vec<AlbumItemType> {
         match self.mode {
             AlbumMode::Single => vec![AlbumItemType::Track],
-            AlbumMode::Ep => vec![
-                AlbumItemType::Disk,
-                AlbumItemType::Track,
-                AlbumItemType::Void,
-            ],
+            AlbumMode::Ep => vec![AlbumItemType::Disk, AlbumItemType::Track, AlbumItemType::Void],
         }
     }
 
@@ -283,11 +279,14 @@ impl Album {
                     errors.push("Release date must be in YYYY-MM-DD format".to_string());
                     None
                 }
-            }
+            },
         };
 
         if matches!(edit.mode, AlbumMode::Single) && !self.could_be_single() {
-            errors.push("Switching to Single requires removing all Disks/Voids and reducing to at most one Track first".to_string());
+            errors.push(
+                "Switching to Single requires removing all Disks/Voids and reducing to at most one Track first"
+                    .to_string(),
+            );
         }
 
         if !errors.is_empty() {
@@ -338,10 +337,6 @@ impl Album {
             errors.push("The album has no tracks".to_string());
         }
 
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors)
-        }
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }

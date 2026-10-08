@@ -57,11 +57,7 @@ impl Component for TrackEditDialog {
             .build()
     }
 
-    fn init(
-        init: Self::Init,
-        root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+    fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let (index, edit) = init;
 
         {
@@ -122,12 +118,7 @@ impl Component for TrackEditDialog {
             let button = release_date_button.clone();
             calendar.connect_day_selected(move |cal| {
                 let date = cal.date();
-                let formatted = format!(
-                    "{:04}-{:02}-{:02}",
-                    date.year(),
-                    date.month(),
-                    date.day_of_month()
-                );
+                let formatted = format!("{:04}-{:02}-{:02}", date.year(), date.month(), date.day_of_month());
                 sender.input(TrackEditMsg::ReleaseDateChanged(formatted.clone()));
                 button.set_label(&formatted);
                 popover.popdown();
@@ -156,10 +147,7 @@ impl Component for TrackEditDialog {
         entry_row!("Remixer", remixer, RemixerChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
-        let scroller = gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .child(&group)
-            .build();
+        let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
         toast_overlay.set_child(Some(&scroller));
 
         let content_box = gtk::Box::builder()

@@ -4,7 +4,10 @@ use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
 
-use crate::models::{album::{Album, AlbumEdit, AlbumMode}, track::Track};
+use crate::models::{
+    album::{Album, AlbumEdit, AlbumMode},
+    track::Track,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlbumEditPurpose {
@@ -25,10 +28,7 @@ pub enum AlbumEditMsg {
 
 #[derive(Debug)]
 pub enum AlbumEditOutput {
-    Saved {
-        purpose: AlbumEditPurpose,
-        edit: AlbumEdit,
-    },
+    Saved { purpose: AlbumEditPurpose, edit: AlbumEdit },
     Cancelled,
 }
 
@@ -66,11 +66,7 @@ impl Component for AlbumEditDialog {
             .build()
     }
 
-    fn init(
-        init: Self::Init,
-        root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
+    fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let (purpose, edit, could_be_single) = init;
 
         root.set_title(match purpose {
@@ -176,12 +172,7 @@ impl Component for AlbumEditDialog {
             let popover = calendar_popover.clone();
             calendar.connect_day_selected(move |cal| {
                 let date = cal.date();
-                let formatted = format!(
-                    "{:04}-{:02}-{:02}",
-                    date.year(),
-                    date.month(),
-                    date.day_of_month()
-                );
+                let formatted = format!("{:04}-{:02}-{:02}", date.year(), date.month(), date.day_of_month());
                 sender.input(AlbumEditMsg::ReleaseDateChanged(formatted.clone()));
                 popover.popdown();
             });
@@ -205,10 +196,7 @@ impl Component for AlbumEditDialog {
         entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
-        let scroller = gtk::ScrolledWindow::builder()
-            .vexpand(true)
-            .child(&group)
-            .build();
+        let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
         toast_overlay.set_child(Some(&scroller));
 
         let content_box = gtk::Box::builder()

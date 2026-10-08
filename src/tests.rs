@@ -26,15 +26,8 @@ fn parsing_album_items() {
         sort_track_title: None,
     };
 
-    let mut album = Album::new(
-        Ep,
-        "Limbus Company OST",
-        "ProjectMoon",
-        "2023-01-01",
-        "Soundtrack",
-        None,
-    )
-    .expect("valid date");
+    let mut album =
+        Album::new(Ep, "Limbus Company OST", "ProjectMoon", "2023-01-01", "Soundtrack", None).expect("valid date");
 
     album.add_disk();
     album.add_void(96);
@@ -48,25 +41,12 @@ fn parsing_album_items() {
 
 #[test]
 fn single_mode_rejects_disks_and_a_second_track() {
-    let mut album = Album::new(
-        Single,
-        "Oh Crab So Crab",
-        "ProjectMoon",
-        "2023-01-01",
-        "Soundtrack",
-        None,
-    )
-    .expect("valid date");
+    let mut album =
+        Album::new(Single, "Oh Crab So Crab", "ProjectMoon", "2023-01-01", "Soundtrack", None).expect("valid date");
 
     assert!(!album.add_disk(), "Single must not accept a Disk");
-    assert!(
-        album.add_track(Track::new(PathBuf::from("a.mp3"))),
-        "First track should succeed"
-    );
-    assert!(
-        !album.add_track(Track::new(PathBuf::from("b.mp3"))),
-        "Single must not accept a second Track"
-    );
+    assert!(album.add_track(Track::new(PathBuf::from("a.mp3"))), "First track should succeed");
+    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3"))), "Single must not accept a second Track");
     assert_eq!(album.get_items().len(), 1);
 }
 
@@ -78,22 +58,14 @@ fn album_new_rejects_unparseable_date() {
 
 #[test]
 fn album_new_allows_a_blank_release_date() {
-    let album = Album::new(
-        Ep,
-        "Limbus Company OST",
-        "ProjectMoon",
-        "",
-        "Soundtrack",
-        None,
-    )
-    .expect("a blank date must not be an error");
+    let album = Album::new(Ep, "Limbus Company OST", "ProjectMoon", "", "Soundtrack", None)
+        .expect("a blank date must not be an error");
     assert_eq!(album.release_date, None);
 }
 
 #[test]
 fn void_gap_with_no_disc_grouping() {
-    let mut album =
-        Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_void(1);
     album.add_track(Track::new(PathBuf::from("b.mp3")));
@@ -137,8 +109,7 @@ fn void_gap_with_no_disc_grouping() {
 
 #[test]
 fn void_gap_with_disc_grouping() {
-    let mut album =
-        Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_disk();
     album.add_void(1);
@@ -156,16 +127,12 @@ fn void_gap_with_disc_grouping() {
         .map(|p| p.map(|p| p.to_string()).unwrap_or_default())
         .collect();
 
-    assert_eq!(
-        rendered,
-        vec!["", "1._", "1.2", "1.3", "1._", "1.7", "", "2.1", "2.2"]
-    );
+    assert_eq!(rendered, vec!["", "1._", "1.2", "1.3", "1._", "1.7", "", "2.1", "2.2"]);
 }
 
 #[test]
 fn track_before_first_disk_is_unassigned_until_disk_moves_up() {
-    let mut album =
-        Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_track(Track::new(PathBuf::from("a.mp3")));
     album.add_disk();
@@ -190,35 +157,20 @@ fn track_before_first_disk_is_unassigned_until_disk_moves_up() {
 
 #[test]
 fn move_item_rejects_out_of_bounds_and_no_ops_on_equal_indices() {
-    let mut album =
-        Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_track(Track::new(PathBuf::from("a.mp3")));
     album.add_track(Track::new(PathBuf::from("b.mp3")));
 
-    assert!(
-        !album.move_item(0, 5),
-        "destination out of bounds must be rejected"
-    );
-    assert!(
-        !album.move_item(5, 0),
-        "source out of bounds must be rejected"
-    );
-    assert!(
-        album.move_item(1, 1),
-        "from == to is a no-op that still succeeds"
-    );
-    assert_eq!(
-        album.get_items().len(),
-        2,
-        "rejected/no-op moves must not touch the list"
-    );
+    assert!(!album.move_item(0, 5), "destination out of bounds must be rejected");
+    assert!(!album.move_item(5, 0), "source out of bounds must be rejected");
+    assert!(album.move_item(1, 1), "from == to is a no-op that still succeeds");
+    assert_eq!(album.get_items().len(), 2, "rejected/no-op moves must not touch the list");
 }
 
 #[test]
 fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
-    let mut album =
-        Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_void(4);
     album.add_track(Track::new(PathBuf::from("a.mp3")));
@@ -226,23 +178,15 @@ fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
     let removed = album.remove_item(0);
     assert!(matches!(removed, Some(AlbumItem::Void { size: 4 })));
     assert_eq!(album.get_items().len(), 1);
-    assert_eq!(
-        album.get_length(),
-        1,
-        "only the Track's slot should remain after removing the Void"
-    );
+    assert_eq!(album.get_length(), 1, "only the Track's slot should remain after removing the Void");
 }
 
 #[test]
 fn removing_the_track_frees_up_single_mode_for_another() {
-    let mut album =
-        Album::new(Single, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
+    let mut album = Album::new(Single, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     assert!(album.add_track(Track::new(PathBuf::from("a.mp3"))));
-    assert!(
-        !album.add_track(Track::new(PathBuf::from("b.mp3"))),
-        "Single already has its one track"
-    );
+    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3"))), "Single already has its one track");
 
     assert!(album.remove_item(0).is_some());
     assert!(
@@ -273,10 +217,7 @@ fn apply_edit_trims_and_normalizes_fields() {
     assert!(track.apply_edit(edit).is_ok());
     assert_eq!(track.title, "Oh Crab So Crab");
     assert_eq!(track.genre, None);
-    assert_eq!(
-        track.release_date,
-        Some(chrono::NaiveDate::from_ymd_opt(2023, 5, 1).unwrap())
-    );
+    assert_eq!(track.release_date, Some(chrono::NaiveDate::from_ymd_opt(2023, 5, 1).unwrap()));
     assert_eq!(track.performer, Some("ProjectMoon".to_string()));
 }
 
@@ -292,10 +233,7 @@ fn apply_edit_rejects_empty_title_and_leaves_track_unchanged() {
 
     let errors = track.apply_edit(edit).unwrap_err();
     assert_eq!(errors, vec![TrackFieldError::TitleEmpty]);
-    assert_eq!(
-        track.title, "Original Title",
-        "a rejected edit must not partially apply"
-    );
+    assert_eq!(track.title, "Original Title", "a rejected edit must not partially apply");
 }
 
 #[test]
@@ -308,13 +246,7 @@ fn apply_edit_rejecs_unparseable_date_and_reports_both_errors_together() {
     };
 
     let errors = track.apply_edit(edit).unwrap_err();
-    assert_eq!(
-        errors,
-        vec![
-            TrackFieldError::TitleEmpty,
-            TrackFieldError::InvalidReleaseDate
-        ]
-    );
+    assert_eq!(errors, vec![TrackFieldError::TitleEmpty, TrackFieldError::InvalidReleaseDate]);
 }
 
 #[test]
@@ -360,15 +292,7 @@ fn track_artist_and_genre_fall_back_to_the_album_when_unset() {
 
 #[test]
 fn album_round_trips_through_json() {
-    let mut album = Album::new(
-        Ep,
-        "Limbus Company OST",
-        "ProjectMoon",
-        "",
-        "Soundtrack",
-        None,
-    )
-    .expect("valid date");
+    let mut album = Album::new(Ep, "Limbus Company OST", "ProjectMoon", "", "Soundtrack", None).expect("valid date");
 
     album.add_disk();
     album.add_void(1);
