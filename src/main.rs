@@ -545,27 +545,19 @@ fn populate_sidebar(
     }
 
     for (id, title) in albums {
-        let label_box = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        let label = gtk::Label::builder()
-            .label(title)
-            .halign(gtk::Align::Start)
-            .margin_top(6)
-            .margin_bottom(6)
-            .margin_start(6)
-            .margin_end(6)
-            .build();
-        if *id == current_id {
-            label.add_css_class("heading");
-        }
-        let click = gtk::GestureClick::new();
-        let sender = sender.clone();
         let id = *id;
-        click.connect_released(move |_gesture, _n_press, _x, _y| {
+        let sender = sender.clone();
+        let row = adw::ActionRow::builder()
+            .title(title)
+            .activatable(true)
+            .build();
+        if id == current_id {
+            list.select_row(Some(&row));
+        }
+        row.connect_activated(move |_| {
             sender.input(AppMsg::OpenAlbum(id));
         });
-        label_box.append(&label);
-        label_box.add_controller(click);
-        list.append(&label_box);
+        list.append(&row);
     }
 }
 
