@@ -30,6 +30,7 @@ struct AppModel {
     window: adw::Window,
     track_edit_dialog: Option<Controller<TrackEditDialog>>,
     album_edit_dialog: Option<Controller<AlbumEditDialog>>,
+    toast_overlay: adw::ToastOverlay,
 }
 
 #[derive(Debug)]
@@ -262,7 +263,11 @@ impl SimpleComponent for AppModel {
 
         let content_toolbar = adw::ToolbarView::new();
         content_toolbar.add_top_bar(&content_header);
-        content_toolbar.set_content(Some(&content_box));
+
+        let toast_overlay = adw::ToastOverlay::new();
+        toast_overlay.set_child(Some(&content_box));
+        content_toolbar.set_content(Some(&toast_overlay));
+
         let content_page = adw::NavigationPage::new(&content_toolbar, &String::new());
 
         split_view.set_sidebar(Some(&sidebar_page));
@@ -281,6 +286,7 @@ impl SimpleComponent for AppModel {
             track_edit_dialog: None,
             album_edit_dialog: None,
             sidebar_albums,
+            toast_overlay,
         };
         let widgets = AppWidgets {
             split_view,
@@ -453,7 +459,16 @@ impl SimpleComponent for AppModel {
                 }
             }
             AppMsg::SaveAlbum => {
+                if let Err(problems) = self.album.validate_for_save() {
+                    let text = match problems.len() {
+                        1 => problems[0].clone(),
+                        n => format!("{} (and {} more)", problems[0], n - 1),
+                    };
+                    self.toast_overlay.add_toast(adw::Toast::builder().title(text).build());
+                    return;
+                }
                 if let Err(e) = crate::storage::save_album(&self.album) {
+                    self.toast_overlay.add_toast(adw::Toast::builder().title(format!("{e}")).build());
                     eprintln!("failed to save album: {e}");
                 }
                 self.sidebar_albums = crate::storage::list_albums();

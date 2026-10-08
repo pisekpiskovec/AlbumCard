@@ -310,4 +310,38 @@ impl Album {
     pub fn from_json(json: &str) -> serde_json::Result<Self> {
         serde_json::from_str(json)
     }
+
+    pub fn validate_for_save(&self) -> Result<(), Vec<String>> {
+        let mut errors = Vec::new();
+
+        if self.title.trim().is_empty() {
+            errors.push("Title cannot be empty.".to_string());
+        }
+
+        let positions = self.item_positions();
+        let mut track_count = 0;
+        for (item, position) in self.items.iter().zip(positions) {
+            if let AlbumItem::Track(track) = item {
+                track_count += 1;
+                let label = position.map(|p| p.to_string()).unwrap_or_default();
+                if track.file_path.as_os_str().is_empty() {
+                    errors.push(format!("Track {label} has no file."));
+                } else if !track.file_path.exists() {
+                    errors.push(format!("Track {label} does not exist."));
+                }
+                if track.title.trim().is_empty() {
+                    errors.push(format!("Track {label} has no title."));
+                }
+            }
+        }
+        if track_count == 0 {
+            errors.push("The album has no tracks".to_string());
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
