@@ -115,12 +115,10 @@ impl Component for TrackEditDialog {
         {
             let sender = sender.clone();
             let popover = calendar_popover.clone();
-            let button = release_date_button.clone();
             calendar.connect_day_selected(move |cal| {
                 let date = cal.date();
                 let formatted = format!("{:04}-{:02}-{:02}", date.year(), date.month(), date.day_of_month());
                 sender.input(TrackEditMsg::ReleaseDateChanged(formatted.clone()));
-                button.set_label(&formatted);
                 popover.popdown();
             });
         }
@@ -219,5 +217,9 @@ impl Component for TrackEditDialog {
                 sender.output(TrackEditOutput::Cancelled).ok();
             }
         }
+
+        widgets
+            .release_date_button
+            .set_label(release_date_label(&self.edit.release_date));
     }
 }
