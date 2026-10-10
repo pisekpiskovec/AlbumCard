@@ -33,6 +33,7 @@ struct AppModel {
     track_edit_dialog: Option<Controller<TrackEditDialog>>,
     album_edit_dialog: Option<Controller<AlbumEditDialog>>,
     toast_overlay: adw::ToastOverlay,
+    saved_json: String,
 }
 
 #[derive(Debug)]
@@ -65,6 +66,7 @@ struct AppWidgets {
     add_disk_action: gtk::gio::SimpleAction,
     add_track_action: gtk::gio::SimpleAction,
     add_void_action: gtk::gio::SimpleAction,
+    save_button: gtk::Button,
 }
 
 impl SimpleComponent for AppModel {
@@ -210,7 +212,6 @@ impl SimpleComponent for AppModel {
         content_header.pack_start(&edit_album_button);
 
         let save_button = gtk::Button::from_icon_name("document-save-symbolic");
-        save_button.add_css_class("suggested-action");
         {
             let sender = sender.clone();
             save_button.connect_clicked(move |_| {
@@ -292,6 +293,8 @@ impl SimpleComponent for AppModel {
         album_meta_label.set_label(&format_album_meta(&album));
         populate_tracklist(&tracklist_box, &album, sender);
 
+        let saved_json = album.to_json().expect("serialization should succeed");
+
         let model = AppModel {
             album,
             window: root.clone(),
@@ -299,6 +302,7 @@ impl SimpleComponent for AppModel {
             album_edit_dialog: None,
             sidebar_albums,
             toast_overlay,
+            saved_json,
         };
         let widgets = AppWidgets {
             split_view,
@@ -311,6 +315,7 @@ impl SimpleComponent for AppModel {
             add_disk_action,
             add_track_action,
             add_void_action,
+            save_button,
         };
 
         ComponentParts { model, widgets }
@@ -370,6 +375,7 @@ impl SimpleComponent for AppModel {
                     .forward(sender.input_sender(), AppMsg::AlbumEditResult);
                 dialog.widget().present(Some(&self.window));
                 self.album_edit_dialog = Some(dialog);
+                self.saved_json = self.album.to_json().expect("serialization should succeed");
             }
             AppMsg::EditAlbumRequest => {
                 let edit = AlbumEdit {
@@ -497,8 +503,12 @@ impl SimpleComponent for AppModel {
                     Ok(loaded) => self.album = loaded,
                     Err(e) => eprintln!("failed to load album {id}: {e}"),
                 }
+                self.saved_json = self.album.to_json().expect("serialization should succeed");
             }
             AppMsg::SaveAlbum => {
+                if !self.is_dirty() {
+                    return;
+                }
                 if let Err(problems) = self.album.validate_for_save() {
                     let text = match problems.len() {
                         1 => problems[0].clone(),
@@ -512,6 +522,7 @@ impl SimpleComponent for AppModel {
                         .add_toast(adw::Toast::builder().title(format!("{e}")).build());
                     eprintln!("failed to save album: {e}");
                 }
+                self.saved_json = self.album.to_json().expect("serialization should succeed");
                 self.sidebar_albums = crate::storage::list_albums();
             }
             AppMsg::TrackFileChosen(file_path) => {
@@ -573,7 +584,20 @@ impl SimpleComponent for AppModel {
             action.set_enabled(allowed.contains(&kind));
         }
 
+        if self.is_dirty() {
+            println!("eh???");
+            widgets.save_button.add_css_class("suggested-action");
+        } else {
+            widgets.save_button.remove_css_class("suggested-action");
+        }
+
         let _ = &widgets.split_view;
+    }
+}
+
+impl AppModel {
+    fn is_dirty(&self) -> bool {
+        self.album.to_json().map(|j| j != self.saved_json).unwrap_or(true)
     }
 }
 
