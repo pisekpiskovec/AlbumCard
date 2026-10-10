@@ -165,51 +165,30 @@ impl SimpleComponent for AppModel {
         content_header.pack_start(&redo_button);
 
         let add_menu = gtk::gio::Menu::new();
-        for kind in album.allowed_item_types() {
-            let label = match kind {
-                AlbumItemType::Disk => "Disk",
-                AlbumItemType::Track => "Track",
-                AlbumItemType::Void => "Void",
-            };
-            let action_name = label.to_lowercase();
-            add_menu.append(Some(label), Some(&format!("app.add-{}", action_name)));
-            match kind {
-                AlbumItemType::Disk => {
-                    let add_disk_action = gtk::gio::SimpleAction::new("add-disk", None);
-                    {
-                        let sender = sender.clone();
-                        add_disk_action.connect_activate(move |_, _| {
-                            sender.input(AppMsg::AddItem(kind));
-                        });
-                    }
-                    relm4::main_application().add_action(&add_disk_action);
-                }
-                AlbumItemType::Track => {
-                    let add_track_action = gtk::gio::SimpleAction::new("add-disk", None);
-                    {
-                        let sender = sender.clone();
-                        add_track_action.connect_activate(move |_, _| {
-                            sender.input(AppMsg::AddItem(kind));
-                        });
-                    }
-                    relm4::main_application().add_action(&add_track_action);
-                }
-                AlbumItemType::Void => {
-                    let add_void_action = gtk::gio::SimpleAction::new("add-disk", None);
-                    {
-                        let sender = sender.clone();
-                        add_void_action.connect_activate(move |_, _| {
-                            sender.input(AppMsg::AddItem(kind));
-                        });
-                    }
-                    relm4::main_application().add_action(&add_void_action);
-                }
-            }
-        }
+
+        let make_action = |name: &str, kind: AlbumItemType| {
+            let action = gtk::gio::SimpleAction::new(name, None);
+            let sender = sender.clone();
+            action.connect_activate(move |_, _| sender.input(AppMsg::AddItem(kind)));
+            relm4::main_application().add_action(&action);
+            action
+        };
+
+        let add_disk_action = make_action("add-disk", AlbumItemType::Disk);
+        let add_track_action = make_action("add-track", AlbumItemType::Track);
+        let add_void_action = make_action("add-void", AlbumItemType::Void);
+
+        add_menu.append(Some("Disk"), Some("app.add-disk"));
+        add_menu.append(Some("Track"), Some("app.add-track"));
+        add_menu.append(Some("Void"), Some("app.add-void"));
+
+        let allowed = album.allowed_item_types();
+        add_disk_action.set_enabled(allowed.contains(&AlbumItemType::Disk));
+        add_track_action.set_enabled(allowed.contains(&AlbumItemType::Track));
+        add_void_action.set_enabled(allowed.contains(&AlbumItemType::Void));
 
         let add_button = adw::SplitButton::builder()
             .icon_name("list-add-symbolic")
-            // .popover(&add_popover)
             .menu_model(&add_menu)
             .tooltip_text("Add Item")
             .build();
