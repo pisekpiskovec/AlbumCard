@@ -323,6 +323,17 @@ impl SimpleComponent for AppModel {
                     self.album.add_disk();
                 }
                 AlbumItemType::Track => {
+                    // Early album type check
+                    if self.album.mode == AlbumMode::Single && !self.album.get_items().is_empty() {
+                        self.toast_overlay.add_toast(
+                            adw::Toast::builder()
+                                .title("Single cannot hold more than 1 Track.")
+                                .build(),
+                        );
+                        return;
+                    }
+
+                    // File dialog
                     let filter = FileFilter::new();
                     filter.add_mime_type("audio/mp3");
                     filter.set_name(Some("MP3"));
