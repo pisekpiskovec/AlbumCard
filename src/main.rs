@@ -2,6 +2,7 @@ mod config;
 mod dialogs;
 mod models;
 mod storage;
+mod tags;
 mod tests;
 
 use std::path::PathBuf;
