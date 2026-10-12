@@ -3,14 +3,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub type TagError = Box<dyn std::error::Error + Send + Sync>;
+
 use chrono::NaiveDate;
 use lofty::{
-    config::WriteOptions,
-    error::LoftyError,
-    file::{AudioFile, TaggedFileExt},
+    config::{ParseOptions, WriteOptions},
+    file::{AudioFile, FileType, TaggedFileExt},
+    flac::FlacFile,
+    mp4::{Atom, AtomData, AtomIdent, Mp4File},
+    mpeg::MpegFile,
+    ogg::{OpusFile, VorbisFile},
     picture::Picture,
     probe::Probe,
-    tag::{Accessor, ItemKey, Tag, TagItem, TagType},
+    tag::{Accessor, ItemKey, Tag},
 };
 
 use crate::models::{
@@ -27,16 +32,62 @@ fn custom_fallback(key: &ItemKey) -> Option<&'static str> {
     }
 }
 
-/// The custom-field key for `key` in this tag type, if it has a fallback.
-fn fallback_key(tag_type: TagType, key: &ItemKey) -> Option<ItemKey> {
-    let name = custom_fallback(key)?;
-    Some(ItemKey::Unknown(match tag_type {
-        TagType::Mp4Ilst => format!("----:com.apple.iTunes:{name}"),
-        _ => name.to_string(),
-    }))
+fn custom_name(key: ItemKey) -> Option<&'static str> {
+    match key {
+        ItemKey::Performer => Some("PERFORMER"),
+        ItemKey::ComposerSortOrder => Some("COMPOSERSORT"),
+        _ => None,
+    }
 }
 
-pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Result<TrackEdit, LoftyError> {
+const MP4_MEAN: &str = "com.apple.iTunes";
+
+fn mp4_ident(name: &str) -> AtomIdent<'static> {
+    AtomIdent::Freeform {
+        mean: MP4_MEAN.into(),
+        name: name.to_string().into(),
+    }
+}
+
+/// Reads a custom field. `None` if absent or the format has no such storage.
+fn read_custom(path: &Path, name: &str) -> Option<String> {
+    let mut file = File::open(path).ok()?;
+    let opts = ParseOptions::new();
+    let ft = FileType::from_path(path)?;
+    match ft {
+        FileType::Flac => {
+            let f = FlacFile::read_from(&mut file, opts).ok()?;
+            f.vorbis_comments()?.get(name).map(str::to_string)
+        }
+        FileType::Mpeg => {
+            let f = MpegFile::read_from(&mut file, opts).ok()?;
+            f.id3v2()?.get_user_text(name).map(str::to_string)
+        }
+        FileType::Mp4 => {
+            let f = Mp4File::read_from(&mut file, opts).ok()?;
+            let atom = f.ilst()?.get(&mp4_ident(name))?;
+            let found = atom.data().find_map(|d| match d {
+                lofty::mp4::AtomData::UTF8(s) | lofty::mp4::AtomData::UTF16(s) => Some(s.clone()),
+                _ => None,
+            });
+            found
+        }
+        FileType::Opus => {
+            let f = OpusFile::read_from(&mut file, opts).ok()?;
+            f.vorbis_comments().get(name).map(str::to_string)
+        }
+        FileType::Vorbis => {
+            let f = VorbisFile::read_from(&mut file, opts).ok()?;
+            f.vorbis_comments().get(name).map(str::to_string)
+        }
+        _ => None,
+    }
+}
+
+/// Reads the tags of `path` into a `TrackEdit`, ready to prefill the edit dialog.
+/// Never invents data: a missing title falls back to the filename
+/// (so the track passes validation), everythin else stays blank.
+pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Result<TrackEdit, TagError> {
     let tagged = Probe::open(path)?.read()?;
     let fallback_title = path
         .file_stem()
@@ -52,9 +103,9 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
     };
 
     let text = |key: ItemKey| {
-        let fallback = fallback_key(tag.tag_type(), &key);
-        tag.get_string(&key)
-            .or_else(|| fallback.as_ref().and_then(|k| tag.get_string(k)))
+        tag.get_string(key)
+            .map(str::to_string)
+            .or_else(|| custom_name(key).and_then(|n| read_custom(path, n)))
             .unwrap_or_default()
             .trim()
             .to_string()
@@ -105,7 +156,7 @@ pub struct WriteReport {
     /// Index into `album.get_items()`.
     pub index: usize,
     pub path: PathBuf,
-    pub result: Result<(), LoftyError>,
+    pub result: Result<(), TagError>,
     /// Fields this file's tag format has no way to store at all
     /// (not even as a custom field), so they were left out.
     ///
@@ -127,34 +178,82 @@ impl WriteSummary {
     }
 }
 
+/// Sets (`Some`) or removes (`None`) a custom field in the file.
+/// Returns `Ok(false)` if this format has no place to store it.
+fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, TagError> {
+    let mut file = File::options().read(true).write(true).open(path)?;
+    let parse_options = ParseOptions::new();
+    let ft = FileType::from_path(path);
+    match ft {
+        Some(FileType::Mpeg) => {
+            let mut f = MpegFile::read_from(&mut file, parse_options)?;
+            let Some(tag) = f.id3v2_mut() else {
+                return Ok(value.is_none());
+            };
+            tag.remove_user_text(name);
+            if let Some(v) = value {
+                tag.insert_user_text(name.to_string(), v.to_string());
+            }
+            f.save_to_path(path, WriteOptions::default())?;
+        }
+        Some(FileType::Mp4) => {
+            let mut f = Mp4File::read_from(&mut file, parse_options)?;
+            let Some(ilst) = f.ilst_mut() else {
+                return Ok(value.is_none());
+            };
+            let ident = mp4_ident(name);
+            drop(ilst.remove(&ident));
+            if let Some(v) = value {
+                ilst.replace_atom(Atom::new(ident, AtomData::UTF8(v.to_string())));
+            }
+            f.save_to_path(path, WriteOptions::default())?;
+        }
+        Some(FileType::Flac) => {
+            let mut f = FlacFile::read_from(&mut file, parse_options)?;
+            let Some(vc) = f.vorbis_comments_mut() else {
+                return Ok(value.is_none());
+            };
+            drop(vc.remove(name));
+            if let Some(v) = value {
+                vc.push(name.to_string(), v.to_string());
+            }
+            f.save_to_path(path, WriteOptions::default())?;
+        }
+        Some(FileType::Vorbis) => {
+            let mut f = VorbisFile::read_from(&mut file, parse_options)?;
+            let vc = f.vorbis_comments_mut();
+            drop(vc.remove(name));
+            if let Some(v) = value {
+                vc.push(name.to_string(), v.to_string());
+            }
+            f.save_to_path(path, WriteOptions::default())?;
+        }
+        Some(FileType::Opus) => {
+            let mut f = OpusFile::read_from(&mut file, parse_options)?;
+            let vc = f.vorbis_comments_mut();
+            drop(vc.remove(name));
+            if let Some(v) = value {
+                vc.push(name.to_string(), v.to_string());
+            }
+            f.save_to_path(path, WriteOptions::default())?;
+        }
+        _ => return Ok(value.is_none()),
+    }
+    Ok(true)
+}
+
 /// Sets `key` to `value`, or removes it when `value` is `None` - so clearing a field
 /// also clears it in the file instead of leaving stale data.
 /// Returns `false` only if a value could not be stored in this format at all.
 fn put(tag: &mut Tag, key: ItemKey, value: Option<&str>) -> bool {
-    let fallback = fallback_key(tag.tag_type(), &key);
-
-    // Clear bot spellings first so a value can never end up stored twice.
-    tag.remove_key(&key);
-    if let Some(fb) = &fallback {
-        tag.remove_key(fb);
-    }
-
-    let Some(value) = value else {
-        return true;
-    };
-    if tag.insert_text(key, value.to_string()) {
-        return true;
-    }
-    match fallback {
-        Some(fb) => {
-            tag.insert_unchecked(TagItem::new(fb, lofty::tag::ItemValue::Text(value.to_string())));
-            true
-        }
-        None => false,
+    tag.remove_key(key);
+    match value {
+        None => true,
+        Some(v) => tag.insert_text(key, v.to_string()),
     }
 }
 
-fn load_cover(path: &Path) -> Result<Picture, LoftyError> {
+fn load_cover(path: &Path) -> Result<Picture, TagError> {
     let mut file = File::open(path)?;
     let mut picture = Picture::from_reader(&mut file)?;
     picture.set_pic_type(lofty::picture::PictureType::CoverFront);
@@ -167,7 +266,7 @@ fn write_track_inner(
     position: Option<AlbumItemPosition>,
     picture: Option<&Picture>,
     unsupported: &mut Vec<&'static str>,
-) -> Result<(), LoftyError> {
+) -> Result<(), TagError> {
     let path = &track.file_path;
     let mut tagged = Probe::open(path)?.read()?;
 
@@ -218,9 +317,15 @@ fn write_track_inner(
         ("sort performer", ItemKey::TrackArtistSortOrder, track.sort_performer.as_deref()),
         ("sort track title", ItemKey::TrackTitleSortOrder, track.sort_track_title.as_deref()),
     ];
+    let mut custom: Vec<(&'static str, &'static str, Option<String>)> = Vec::new();
     for (name, key, value) in fields {
-        if !put(tag, key, value) {
-            unsupported.push(name);
+        let stored = put(tag, key, value);
+        match custom_name(key) {
+            Some(cn) if !stored || value.is_none() => {
+                custom.push((name, cn, value.map(str::to_string)));
+            }
+            None | Some(_) => {}
+            None if !stored => unsupported.push(name),
         }
     }
 
@@ -229,7 +334,14 @@ fn write_track_inner(
         tag.push_picture(picture.clone());
     }
 
-    tagged.save_to_path(path, WriteOptions::default())
+    tagged.save_to_path(path, WriteOptions::default())?;
+
+    for (label, cn, value) in custom {
+        if !write_custom(path, cn, value.as_deref())? {
+            unsupported.push(label);
+        }
+    }
+    Ok(())
 }
 
 fn write_track(
@@ -237,7 +349,7 @@ fn write_track(
     track: &crate::models::track::Track,
     position: Option<AlbumItemPosition>,
     picture: Option<&Picture>,
-) -> (Result<(), LoftyError>, Vec<&'static str>) {
+) -> (Result<(), TagError>, Vec<&'static str>) {
     let mut unsupported = Vec::new();
     let result = write_track_inner(album, track, position, picture, &mut unsupported);
     (result, unsupported)
