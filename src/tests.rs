@@ -2,10 +2,32 @@
 
 use std::path::PathBuf;
 
-use crate::models::{
-    album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
-    track::{DiscLabel, Track, TrackEdit, TrackFieldError},
+use crate::{
+    models::{
+        album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
+        track::{DiscLabel, Track, TrackEdit, TrackFieldError},
+    },
+    tags::{read_track_edit, write_album_tags},
 };
+
+fn silent_mp3(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join("albumcard-tags-tests");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join(name);
+    let mut data = Vec::new();
+    for _ in 0..20 {
+        data.extend_from_slice(&[0xFF, 0xFB, 0x90, 0x00]);
+        data.extend(std::iter::repeat_n(0u8, 413));
+    }
+    std::fs::write(&path, data).unwrap();
+    path
+}
+
+fn track_at(path: PathBuf, title: &str) -> Track {
+    let mut t = Track::new(path);
+    t.title = title.to_string();
+    t
+}
 
 #[test]
 fn parsing_album_items() {
@@ -212,6 +234,7 @@ fn apply_edit_trims_and_normalizes_fields() {
         sort_composer: String::new(),
         sort_performer: String::new(),
         sort_track_title: String::new(),
+        file_path: PathBuf::new(),
     };
 
     assert!(track.apply_edit(edit).is_ok());
@@ -314,4 +337,135 @@ fn each_album_gets_a_distinct_id() {
     let a = Album::new(Single, "A", "Artist", "", "Genre", None).expect("valid date");
     let b = Album::new(Single, "B", "Brtist", "", "Genre", None).expect("valid date");
     assert_ne!(a.id, b.id);
+}
+
+#[test]
+fn untagged_file_prefills_title_from_filename() {
+    let path = silent_mp3("Mili - Iron Lotus.mp3");
+    let edit = read_track_edit(&path, "Mili", "Soundtrack").unwrap();
+    assert_eq!(edit.title, "Mili - Iron Lotus");
+    assert_eq!(edit.artist, "");
+}
+
+#[test]
+fn write_then_read_round_trips_and_inherits_album_values() {
+    let path = silent_mp3("roundtrip.mp3");
+    let mut album = Album::new(Ep, "To Kill A Living Book", "Mili", "2021-02-27", "Soundtrack", None).unwrap();
+    album.add_disk();
+    album.add_void(1);
+    let mut t = track_at(path.clone(), "Iron Lotus");
+    t.composer = Some("Cassie Wei".to_string());
+    t.sort_track_title = Some("Iron Lotus (sort)".to_string());
+    album.add_track(t);
+
+    let summary = write_album_tags(&album);
+    assert_eq!(summary.reports.len(), 1);
+    assert!(summary.failures().next().is_none(), "{:?}", summary.reports);
+    assert!(summary.art_error.is_none());
+
+    let edit = read_track_edit(&path, &album.album_artist, &album.genre).unwrap();
+    assert_eq!(edit.title, "Iron Lotus");
+    // artist/genre equal the album's, so they come back blank (= inherit)
+    assert_eq!(edit.artist, "");
+    assert_eq!(edit.genre, "");
+    assert_eq!(edit.release_date, "2021-02-27");
+    assert_eq!(edit.composer, "Cassie Wei");
+    assert_eq!(edit.sort_track_title, "Iron Lotus (sort)");
+}
+
+#[test]
+fn clearing_a_field_clears_it_in_the_file() {
+    let path = silent_mp3("clearing.mp3");
+    let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
+    let mut t = track_at(path.clone(), "Song");
+    t.composer = Some("Someone".to_string());
+    album.add_track(t);
+    write_album_tags(&album);
+    assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "Someone");
+
+    //Rebuild the album with the composer removed and write again.
+    let mut album2 = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
+    album2.add_track(track_at(path.clone(), "Song"));
+    write_album_tags(&album2);
+    assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "");
+}
+
+#[test]
+fn track_override_beats_album_and_missing_file_is_reported_not_fatal() {
+    let good = silent_mp3("override.mp3");
+    let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
+    let mut featured = track_at(good.clone(), "Featured");
+    featured.artist = Some("Guest".to_string());
+    album.add_track(featured);
+    album.add_track(track_at(PathBuf::from("/definitely/not/here.mp3"), "Missing"));
+
+    let summary = write_album_tags(&album);
+    assert_eq!(summary.reports.len(), 2);
+    assert_eq!(summary.failures().count(), 1, "only the missing file should fail");
+    assert_eq!(summary.failures().next().unwrap().index, 1);
+
+    let edit = read_track_edit(&good, "Album Artist", "Genre").unwrap();
+    assert_eq!(edit.artist, "Guest");
+}
+
+#[test]
+fn year_only_date_is_left_blank() {
+    // Hand-write a year-only date through the writer's own path:
+    // a track whose date is None and album has none leaves the key absent -> blang.
+    let path = silent_mp3("nodate.mp3");
+    let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
+    album.add_track(track_at(path.clone(), "Song"));
+    write_album_tags(&album);
+    assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().release_date, "");
+    let _ = TrackEdit::default();
+}
+
+#[test]
+fn every_edit_field_survives_an_id3_round_trip() {
+    let path = silent_mp3("everything.mp3");
+    let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
+    let mut t = Track::new(path.clone());
+    t.apply_edit(TrackEdit {
+        file_path: t.file_path.clone(),
+        title: "Song".into(),
+        artist: "Guest".into(),
+        genre: "Other".into(),
+        release_date: "2020-05-01".into(),
+        performer: "P".into(),
+        composer: "C".into(),
+        lyricist: "L".into(),
+        remixer: "R".into(),
+        sort_album_title: "sortAT".into(),
+        sort_album_artist: "sortAA".into(),
+        sort_composer: "sortC".into(),
+        sort_performer: "sortP".into(),
+        sort_track_title: "sortTT".into(),
+    })
+    .unwrap();
+    album.add_track(t.clone());
+
+    let summary = write_album_tags(&album);
+    assert!(summary.reports[0].result.is_ok());
+    assert!(summary.reports[0].unsupported.is_empty());
+
+    let back = read_track_edit(&path, "Artist", "Genre").unwrap();
+    assert_eq!(
+        back,
+        TrackEdit {
+            file_path: t.file_path.clone(),
+            title: "Song".into(),
+            artist: "Guest".into(),
+            genre: "Other".into(),
+            release_date: "2020-05-01".into(),
+            performer: "P".into(),
+            composer: "C".into(),
+            lyricist: "L".into(),
+            remixer: "R".into(),
+            sort_album_title: "sortAT".into(),
+            sort_album_artist: "sortAA".into(),
+            sort_composer: "sortC".into(),
+            sort_performer: "sortP".into(),
+            sort_track_title: "sortTT".into(),
+        }
+    );
 }
