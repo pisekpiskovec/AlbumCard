@@ -332,8 +332,13 @@ fn write_track_inner(
         .release_date
         .or(album.release_date)
         .map(|d| d.format("%Y-%m-%d").to_string());
-    let fields: [(&'static str, ItemKey, Option<&str>); 10] = [
+    let year = track
+        .release_date
+        .or(album.release_date)
+        .map(|d| d.format("%Y").to_string());
+    let fields: [(&'static str, ItemKey, Option<&str>); 11] = [
         ("release date", ItemKey::RecordingDate, date.as_deref()),
+        ("release year", ItemKey::Year, year.as_deref()),
         ("performer", ItemKey::Performer, track.performer.as_deref()),
         ("composer", ItemKey::Composer, track.composer.as_deref()),
         ("lyricist", ItemKey::Lyricist, track.lyricist.as_deref()),
