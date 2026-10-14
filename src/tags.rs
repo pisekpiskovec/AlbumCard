@@ -5,6 +5,18 @@ use std::{
 
 pub type TagError = Box<dyn std::error::Error + Send + Sync>;
 
+// Lets get proper error message out of lofty
+fn err<E: std::error::Error>(e: E) -> TagError {
+    let mut msg = e.to_string();
+    let mut source = e.source();
+    while let Some(s) = source {
+        msg.push_str(": ");
+        msg.push_str(&s.to_string());
+        source = s.source();
+    }
+    msg.into()
+}
+
 use chrono::NaiveDate;
 use lofty::{
     config::{ParseOptions, WriteOptions},
@@ -22,6 +34,14 @@ use crate::models::{
     album::{Album, AlbumItem, AlbumItemPosition, AlbumMode},
     track::TrackEdit,
 };
+
+fn parse_opts() -> ParseOptions {
+    ParseOptions::new().max_junk_bytes(1 << 20)
+}
+
+fn write_opts() -> WriteOptions {
+    WriteOptions::new().parse_options(parse_opts())
+}
 
 /// A few fields have no standard key in every tag format.
 fn custom_fallback(key: &ItemKey) -> Option<&'static str> {
@@ -52,7 +72,7 @@ fn mp4_ident(name: &str) -> AtomIdent<'static> {
 /// Reads a custom field. `None` if absent or the format has no such storage.
 fn read_custom(path: &Path, name: &str) -> Option<String> {
     let mut file = File::open(path).ok()?;
-    let opts = ParseOptions::new();
+    let opts = parse_opts();
     let ft = FileType::from_path(path)?;
     match ft {
         FileType::Flac => {
@@ -66,11 +86,10 @@ fn read_custom(path: &Path, name: &str) -> Option<String> {
         FileType::Mp4 => {
             let f = Mp4File::read_from(&mut file, opts).ok()?;
             let atom = f.ilst()?.get(&mp4_ident(name))?;
-            let found = atom.data().find_map(|d| match d {
+            atom.data().find_map(|d| match d {
                 lofty::mp4::AtomData::UTF8(s) | lofty::mp4::AtomData::UTF16(s) => Some(s.clone()),
                 _ => None,
-            });
-            found
+            })
         }
         FileType::Opus => {
             let f = OpusFile::read_from(&mut file, opts).ok()?;
@@ -88,7 +107,11 @@ fn read_custom(path: &Path, name: &str) -> Option<String> {
 /// Never invents data: a missing title falls back to the filename
 /// (so the track passes validation), everythin else stays blank.
 pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Result<TrackEdit, TagError> {
-    let tagged = Probe::open(path)?.read()?;
+    let tagged = Probe::open(path)
+        .map_err(err)?
+        .options(parse_opts())
+        .read()
+        .map_err(err)?;
     let fallback_title = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -182,11 +205,11 @@ impl WriteSummary {
 /// Returns `Ok(false)` if this format has no place to store it.
 fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, TagError> {
     let mut file = File::options().read(true).write(true).open(path)?;
-    let parse_options = ParseOptions::new();
+    let parse_options = parse_opts();
     let ft = FileType::from_path(path);
     match ft {
         Some(FileType::Mpeg) => {
-            let mut f = MpegFile::read_from(&mut file, parse_options)?;
+            let mut f = MpegFile::read_from(&mut file, parse_options).map_err(err)?;
             let Some(tag) = f.id3v2_mut() else {
                 return Ok(value.is_none());
             };
@@ -194,10 +217,10 @@ fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, Ta
             if let Some(v) = value {
                 tag.insert_user_text(name.to_string(), v.to_string());
             }
-            f.save_to_path(path, WriteOptions::default())?;
+            f.save_to_path(path, write_opts()).map_err(err)?;
         }
         Some(FileType::Mp4) => {
-            let mut f = Mp4File::read_from(&mut file, parse_options)?;
+            let mut f = Mp4File::read_from(&mut file, parse_options).map_err(err)?;
             let Some(ilst) = f.ilst_mut() else {
                 return Ok(value.is_none());
             };
@@ -206,10 +229,10 @@ fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, Ta
             if let Some(v) = value {
                 ilst.replace_atom(Atom::new(ident, AtomData::UTF8(v.to_string())));
             }
-            f.save_to_path(path, WriteOptions::default())?;
+            f.save_to_path(path, write_opts()).map_err(err)?;
         }
         Some(FileType::Flac) => {
-            let mut f = FlacFile::read_from(&mut file, parse_options)?;
+            let mut f = FlacFile::read_from(&mut file, parse_options).map_err(err)?;
             let Some(vc) = f.vorbis_comments_mut() else {
                 return Ok(value.is_none());
             };
@@ -217,25 +240,25 @@ fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, Ta
             if let Some(v) = value {
                 vc.push(name.to_string(), v.to_string());
             }
-            f.save_to_path(path, WriteOptions::default())?;
+            f.save_to_path(path, write_opts()).map_err(err)?;
         }
         Some(FileType::Vorbis) => {
-            let mut f = VorbisFile::read_from(&mut file, parse_options)?;
+            let mut f = VorbisFile::read_from(&mut file, parse_options).map_err(err)?;
             let vc = f.vorbis_comments_mut();
             drop(vc.remove(name));
             if let Some(v) = value {
                 vc.push(name.to_string(), v.to_string());
             }
-            f.save_to_path(path, WriteOptions::default())?;
+            f.save_to_path(path, write_opts()).map_err(err)?;
         }
         Some(FileType::Opus) => {
-            let mut f = OpusFile::read_from(&mut file, parse_options)?;
+            let mut f = OpusFile::read_from(&mut file, parse_options).map_err(err)?;
             let vc = f.vorbis_comments_mut();
             drop(vc.remove(name));
             if let Some(v) = value {
                 vc.push(name.to_string(), v.to_string());
             }
-            f.save_to_path(path, WriteOptions::default())?;
+            f.save_to_path(path, write_opts()).map_err(err)?;
         }
         _ => return Ok(value.is_none()),
     }
@@ -268,7 +291,11 @@ fn write_track_inner(
     unsupported: &mut Vec<&'static str>,
 ) -> Result<(), TagError> {
     let path = &track.file_path;
-    let mut tagged = Probe::open(path)?.read()?;
+    let mut tagged = Probe::open(path)
+        .map_err(err)?
+        .options(parse_opts())
+        .read()
+        .map_err(err)?;
 
     if tagged.primary_tag().is_none() {
         let tag_type = tagged.primary_tag_type();
@@ -324,8 +351,8 @@ fn write_track_inner(
             Some(cn) if !stored || value.is_none() => {
                 custom.push((name, cn, value.map(str::to_string)));
             }
-            None | Some(_) => {}
             None if !stored => unsupported.push(name),
+            None | Some(_) => {}
         }
     }
 
@@ -334,7 +361,7 @@ fn write_track_inner(
         tag.push_picture(picture.clone());
     }
 
-    tagged.save_to_path(path, WriteOptions::default())?;
+    tagged.save_to_path(path, write_opts()).map_err(err)?;
 
     for (label, cn, value) in custom {
         if !write_custom(path, cn, value.as_deref())? {
