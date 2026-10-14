@@ -524,7 +524,16 @@ impl SimpleComponent for AppModel {
                 };
                 let go = match response.as_str() {
                     "save" => self.save_everything(),
-                    "discard" => true,
+                    "discard" => {
+                        match storage::load_album(self.album.id) {
+                            Ok(saved) => {
+                                self.album = saved;
+                                self.saved_json = self.album.to_json().expect("serialization should succeed");
+                            }
+                            Err(e) => self.toast(&format!("Couldn't restore the saved album: {e}")),
+                        }
+                        true
+                    }
                     _ => false,
                 };
                 if go {
@@ -663,7 +672,7 @@ impl AppModel {
         }
         self.saved_json = self.album.to_json().unwrap_or_default();
         self.sidebar_albums = storage::list_albums();
-        true
+        summary.failures().next().is_none()
     }
 
     fn proceed(&mut self, target: Pending, sender: &ComponentSender<Self>) {
