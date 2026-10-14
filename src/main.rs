@@ -14,8 +14,9 @@ use uuid::Uuid;
 
 use crate::config::VERSION;
 use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
-use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput};
+use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput, TrackEditTarget};
 use crate::models::album::AlbumEdit;
+use crate::models::track::TrackEdit;
 use crate::models::{
     album::{Album, AlbumItem, AlbumItemType, AlbumMode},
     track::Track,
@@ -440,18 +441,28 @@ impl SimpleComponent for AppModel {
                     return;
                 };
                 let dialog = TrackEditDialog::builder()
-                    .launch((index, track.edit_snapshot()))
+                    .launch((TrackEditTarget::Existing(index), track.edit_snapshot()))
                     .forward(sender.input_sender(), AppMsg::TrackEditResult);
                 dialog.widget().present(Some(&self.window));
 
                 self.track_edit_dialog = Some(dialog);
             }
-            AppMsg::TrackEditResult(TrackEditOutput::Saved { index, edit }) => {
-                if let Some(AlbumItem::Track(track)) = self.album.get_item_mut(index) {
-                    track.apply_edit(edit).ok();
+            AppMsg::TrackEditResult(TrackEditOutput::Saved { target, edit }) => {
+                match target {
+                    TrackEditTarget::Existing(index) => {
+                        if let Some(AlbumItem::Track(t)) = self.album.get_item_mut(index) {
+                            t.apply_edit(edit).ok();
+                        }
+                    }
+                    TrackEditTarget::New(path) => {
+                        let mut track = Track::new(path);
+                        if track.apply_edit(edit).is_ok() && !self.album.add_track(track) {
+                            self.toast("Single cannot hold more than 1 Track.");
+                        }
+                    }
                 }
-                if let Some(dialog) = self.track_edit_dialog.take() {
-                    dialog.widget().close();
+                if let Some(d) = self.track_edit_dialog.take() {
+                    d.widget().close();
                 }
             }
             AppMsg::TrackEditResult(TrackEditOutput::Cancelled) => {
@@ -510,25 +521,29 @@ impl SimpleComponent for AppModel {
                 if !self.is_dirty() {
                     return;
                 }
-                if let Err(problems) = self.album.validate_for_save() {
-                    let text = match problems.len() {
-                        1 => problems[0].clone(),
-                        n => format!("{} (and {} more)", problems[0], n - 1),
-                    };
-                    self.toast_overlay.add_toast(adw::Toast::builder().title(text).build());
-                    return;
-                }
-                if let Err(e) = crate::storage::save_album(&self.album) {
-                    self.toast_overlay
-                        .add_toast(adw::Toast::builder().title(format!("{e}")).build());
-                    eprintln!("failed to save album: {e}");
-                }
-                self.saved_json = self.album.to_json().expect("serialization should succeed");
-                self.sidebar_albums = crate::storage::list_albums();
+                self.save_everything();
             }
-            AppMsg::TrackFileChosen(file_path) => {
-                self.album.add_track(Track::new(file_path));
-                sender.input(AppMsg::EditTrackRequest(self.album.get_items().len() - 1));
+            AppMsg::TrackFileChosen(path) => {
+                let edit = match tags::read_track_edit(&path, &self.album.album_artist, &self.album.genre) {
+                    Ok(edit) => edit,
+                    Err(e) => {
+                        self.toast(&format!("Couldn't read tags: {e}"));
+                        TrackEdit {
+                            file_path: path.clone(),
+                            title: path
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or_default()
+                                .to_string(),
+                            ..Default::default()
+                        }
+                    }
+                };
+                let dialog = TrackEditDialog::builder()
+                    .launch((TrackEditTarget::New(path), edit))
+                    .forward(sender.input_sender(), AppMsg::TrackEditResult);
+                dialog.widget().present(Some(&self.window));
+                self.track_edit_dialog = Some(dialog);
             }
             AppMsg::LoadImageRequest => {
                 let filter = FileFilter::new();
@@ -586,7 +601,6 @@ impl SimpleComponent for AppModel {
         }
 
         if self.is_dirty() {
-            println!("eh???");
             widgets.save_button.add_css_class("suggested-action");
         } else {
             widgets.save_button.remove_css_class("suggested-action");
@@ -599,6 +613,42 @@ impl SimpleComponent for AppModel {
 impl AppModel {
     fn is_dirty(&self) -> bool {
         self.album.to_json().map(|j| j != self.saved_json).unwrap_or(true)
+    }
+
+    fn toast(&self, msg: &str) {
+        self.toast_overlay.add_toast(adw::Toast::new(msg));
+    }
+
+    fn save_everything(&mut self) -> bool {
+        if let Err(p) = self.album.validate_for_save() {
+            self.toast(&p[0]);
+            return false;
+        }
+        if let Err(e) = storage::save_album(&self.album) {
+            self.toast(&format!("Save failed: {e}"));
+            return false;
+        }
+
+        let summary = tags::write_album_tags(&self.album);
+        if let Some(art) = &summary.art_error {
+            self.toast(&format!("Cover not embedded: {art}"));
+        }
+        if let Some(bad) = summary.failures().next() {
+            let n = summary.failures().count();
+            self.toast(&format!(
+                "{} failed: {}{}",
+                bad.path.display(),
+                bad.result.as_ref().unwrap_err(),
+                if n > 1 {
+                    format!(" (+{} more)", n - 1)
+                } else {
+                    String::new()
+                }
+            ));
+        }
+        self.saved_json = self.album.to_json().unwrap_or_default();
+        self.sidebar_albums = storage::list_albums();
+        true
     }
 }
 

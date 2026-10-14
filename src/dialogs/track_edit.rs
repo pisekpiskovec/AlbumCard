@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
@@ -20,12 +22,17 @@ pub enum TrackEditMsg {
 
 #[derive(Debug)]
 pub enum TrackEditOutput {
-    Saved { index: usize, edit: TrackEdit },
+    Saved { target: TrackEditTarget, edit: TrackEdit },
     Cancelled,
 }
 
+#[derive(Debug)]
+pub enum TrackEditTarget {
+    Existing(usize), New(PathBuf),
+}
+
 pub struct TrackEditDialog {
-    index: usize,
+    target: TrackEditTarget,
     edit: TrackEdit,
 }
 
@@ -44,7 +51,7 @@ fn release_date_label(value: &str) -> &str {
 impl Component for TrackEditDialog {
     type Input = TrackEditMsg;
     type Output = TrackEditOutput;
-    type Init = (usize, TrackEdit);
+    type Init = (TrackEditTarget, TrackEdit);
     type Root = adw::Dialog;
     type Widgets = TrackEditWidgets;
     type CommandOutput = ();
@@ -58,7 +65,7 @@ impl Component for TrackEditDialog {
     }
 
     fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        let (index, edit) = init;
+        let (target, edit) = init;
 
         {
             let sender = sender.clone();
@@ -73,6 +80,11 @@ impl Component for TrackEditDialog {
             save_button.connect_clicked(move |_| sender.input(TrackEditMsg::Save));
         }
         header.pack_end(&save_button);
+
+        if matches!(target, TrackEditTarget::New(_)) {
+            root.set_title("New Track");
+            save_button.set_label("Add");
+        }
 
         let group = adw::PreferencesGroup::new();
 
@@ -172,7 +184,7 @@ impl Component for TrackEditDialog {
 
         root.set_child(Some(&toolbar_view));
 
-        let model = TrackEditDialog { index, edit };
+        let model = TrackEditDialog { target, edit };
         let widgets = TrackEditWidgets {
             release_date_button,
             toast_overlay,
@@ -201,9 +213,10 @@ impl Component for TrackEditDialog {
                 let mut scratch = Track::default();
                 match scratch.apply_edit(self.edit.clone()) {
                     Ok(()) => {
+                        let target = std::mem::replace(&mut self.target, TrackEditTarget::Existing(0));
                         sender
                             .output(TrackEditOutput::Saved {
-                                index: self.index,
+                                target,
                                 edit: self.edit.clone(),
                             })
                             .ok();
