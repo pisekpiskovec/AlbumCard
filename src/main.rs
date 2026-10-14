@@ -28,6 +28,12 @@ enum Direction {
     Down,
 }
 
+enum Pending {
+    Open(Uuid),
+    New,
+    Quit,
+}
+
 struct AppModel {
     album: Album,
     sidebar_albums: Vec<(Uuid, String)>,
@@ -36,6 +42,7 @@ struct AppModel {
     album_edit_dialog: Option<Controller<AlbumEditDialog>>,
     toast_overlay: adw::ToastOverlay,
     saved_json: String,
+    pending: Option<Pending>,
 }
 
 #[derive(Debug)]
@@ -55,6 +62,8 @@ enum AppMsg {
     TrackFileChosen(PathBuf),
     LoadImageRequest,
     ImageFileChosen(PathBuf),
+    UnsavedResponse(String),
+    CloseRequest,
 }
 
 struct AppWidgets {
@@ -89,6 +98,14 @@ impl SimpleComponent for AppModel {
     fn init(_init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
+
+        {
+            let sender = sender.clone();
+            root.connect_close_request(move |_| {
+                sender.input(AppMsg::CloseRequest);
+                gtk::glib::Propagation::Stop
+            });
+        }
 
         let split_view = adw::OverlaySplitView::new();
 
@@ -305,6 +322,7 @@ impl SimpleComponent for AppModel {
             sidebar_albums,
             toast_overlay,
             saved_json,
+            pending: None,
         };
         let widgets = AppWidgets {
             split_view,
@@ -364,21 +382,7 @@ impl SimpleComponent for AppModel {
                     self.album.add_void(config::DEFAULT_VOID_SIZE);
                 }
             },
-            AppMsg::NewAlbumRequest => {
-                let edit = AlbumEdit {
-                    title: String::new(),
-                    album_artist: String::new(),
-                    release_date: String::new(),
-                    genre: String::new(),
-                    mode: AlbumMode::Ep,
-                };
-                let dialog = AlbumEditDialog::builder()
-                    .launch((AlbumEditPurpose::New, edit, true))
-                    .forward(sender.input_sender(), AppMsg::AlbumEditResult);
-                dialog.widget().present(Some(&self.window));
-                self.album_edit_dialog = Some(dialog);
-                self.saved_json = self.album.to_json().expect("serialization should succeed");
-            }
+            AppMsg::NewAlbumRequest => self.leave(Pending::New, &sender),
             AppMsg::EditAlbumRequest => {
                 let edit = AlbumEdit {
                     title: self.album.title.clone(),
@@ -413,6 +417,7 @@ impl SimpleComponent for AppModel {
                                 if let Err(e) = crate::storage::save_album(&new_album) {
                                     eprintln!("failed to save new album: {e}");
                                 }
+                                self.saved_json = self.album.to_json().expect("serialization should succeed");
                                 self.album = new_album;
                                 self.sidebar_albums = crate::storage::list_albums();
                             }
@@ -511,11 +516,20 @@ impl SimpleComponent for AppModel {
                 if id == self.album.id {
                     return;
                 }
-                match crate::storage::load_album(id) {
-                    Ok(loaded) => self.album = loaded,
-                    Err(e) => eprintln!("failed to load album {id}: {e}"),
+                self.leave(Pending::Open(id), &sender);
+            }
+            AppMsg::UnsavedResponse(response) => {
+                let Some(target) = self.pending.take() else {
+                    return;
+                };
+                let go = match response.as_str() {
+                    "save" => self.save_everything(),
+                    "discard" => true,
+                    _ => false,
+                };
+                if go {
+                    self.proceed(target, &sender);
                 }
-                self.saved_json = self.album.to_json().expect("serialization should succeed");
             }
             AppMsg::SaveAlbum => {
                 if !self.is_dirty() {
@@ -565,6 +579,7 @@ impl SimpleComponent for AppModel {
             AppMsg::ImageFileChosen(art_path) => {
                 self.album.art_path = Some(art_path);
             }
+            AppMsg::CloseRequest => self.leave(Pending::Quit, &sender),
         }
     }
 
@@ -649,6 +664,54 @@ impl AppModel {
         self.saved_json = self.album.to_json().unwrap_or_default();
         self.sidebar_albums = storage::list_albums();
         true
+    }
+
+    fn proceed(&mut self, target: Pending, sender: &ComponentSender<Self>) {
+        match target {
+            Pending::Open(id) => match storage::load_album(id) {
+                Ok(loaded) => {
+                    self.album = loaded;
+                    self.saved_json = self.album.to_json().expect("serialization should succeed");
+                }
+                Err(e) => eprintln!("failed to load album {id}: {e}"),
+            },
+            Pending::New => {
+                let edit = AlbumEdit {
+                    title: String::new(),
+                    album_artist: String::new(),
+                    release_date: String::new(),
+                    genre: String::new(),
+                    mode: AlbumMode::Ep,
+                };
+                let dialog = AlbumEditDialog::builder()
+                    .launch((AlbumEditPurpose::New, edit, true))
+                    .forward(sender.input_sender(), AppMsg::AlbumEditResult);
+                dialog.widget().present(Some(&self.window));
+                self.album_edit_dialog = Some(dialog);
+            }
+            Pending::Quit => relm4::main_application().quit(),
+        }
+    }
+
+    /// Runs `target` now, or asks about unsaved changes first.
+    fn leave(&mut self, target: Pending, sender: &ComponentSender<Self>) {
+        if !self.is_dirty() {
+            self.proceed(target, sender);
+            return;
+        }
+        self.pending = Some(target);
+        let dialog = adw::AlertDialog::builder()
+            .heading("Unsaved changes")
+            .body("Save changes to this album before swithching?")
+            .build();
+        dialog.add_responses(&[("cancel", "Cancel"), ("discard", "Discard"), ("save", "Save")]);
+        dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
+        dialog.set_response_appearance("save", adw::ResponseAppearance::Suggested);
+        dialog.set_default_response(Some("save"));
+        dialog.set_close_response("cancel");
+        let sender = sender.clone();
+        dialog.connect_response(None, move |_, response| sender.input(AppMsg::UnsavedResponse(response.to_string())));
+        dialog.present(Some(&self.window));
     }
 }
 
