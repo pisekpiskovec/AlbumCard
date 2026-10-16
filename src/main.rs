@@ -3,6 +3,7 @@ mod dialogs;
 mod models;
 mod storage;
 mod tags;
+mod templ;
 mod tests;
 
 use std::path::PathBuf;
@@ -394,6 +395,7 @@ impl SimpleComponent for AppModel {
                         .unwrap_or_default(),
                     genre: self.album.genre.clone(),
                     mode: self.album.mode,
+                    rating: self.album.rating,
                 };
                 let could_be_single = self.album.could_be_single();
                 let dialog = AlbumEditDialog::builder()
@@ -691,6 +693,7 @@ impl AppModel {
                     release_date: String::new(),
                     genre: String::new(),
                     mode: AlbumMode::Ep,
+                    rating: None,
                 };
                 let dialog = AlbumEditDialog::builder()
                     .launch((AlbumEditPurpose::New, edit, true))

@@ -21,6 +21,7 @@ pub struct Album {
     pub(crate) genre: String,
     items: Vec<AlbumItem>,
     pub(crate) art_path: Option<PathBuf>,
+    pub rating: Option<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -50,6 +51,7 @@ pub struct AlbumEdit {
     pub release_date: String,
     pub genre: String,
     pub mode: AlbumMode,
+    pub rating: Option<u8>,
 }
 
 impl std::fmt::Display for AlbumItemPosition {
@@ -88,6 +90,7 @@ impl Album {
             genre: genre.to_string(),
             items: Vec::new(),
             art_path: art,
+            rating: None,
         })
     }
 
@@ -102,6 +105,7 @@ impl Album {
             genre: String::new(),
             items: Vec::new(),
             art_path: None,
+            rating: None,
         }
     }
 
@@ -298,6 +302,7 @@ impl Album {
         self.release_date = release_date;
         self.genre = edit.genre.trim().to_string();
         self.mode = edit.mode;
+        self.rating = edit.rating.filter(|&r| r > 0);
 
         Ok(())
     }

@@ -20,6 +20,7 @@ pub struct Track {
     pub(crate) sort_composer: Option<String>,
     pub(crate) sort_performer: Option<String>,
     pub(crate) sort_track_title: Option<String>,
+    pub rating: Option<u8>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -38,6 +39,7 @@ pub struct TrackEdit {
     pub sort_composer: String,
     pub sort_performer: String,
     pub sort_track_title: String,
+    pub rating: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +97,7 @@ impl Track {
             sort_composer: self.sort_composer.clone().unwrap_or_default(),
             sort_performer: self.sort_performer.clone().unwrap_or_default(),
             sort_track_title: self.sort_track_title.clone().unwrap_or_default(),
+            rating: self.rating,
         }
     }
 
@@ -136,6 +139,7 @@ impl Track {
         self.sort_composer = Self::blank_to_none(&edit.sort_composer);
         self.sort_performer = Self::blank_to_none(&edit.sort_performer);
         self.sort_track_title = Self::blank_to_none(&edit.sort_track_title);
+        self.rating = edit.rating.filter(|&r| r > 0);
 
         Ok(())
     }
@@ -157,5 +161,9 @@ impl Track {
     /// This track's genre, falling back to the album's `genre`
     pub fn effective_genre<'a>(&'a self, album: &'a Album) -> &'a str {
         self.genre.as_deref().unwrap_or(&album.genre)
+    }
+
+    pub fn effective_rating(&self, album: &Album) -> Option<u8> {
+        self.rating.or(album.rating)
     }
 }
