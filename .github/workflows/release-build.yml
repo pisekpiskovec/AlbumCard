@@ -1,0 +1,130 @@
+name: Build on release
+
+on:
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-rpm-x64:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-generate-rpm
+      run: cargo install cargo-generate-rpm
+    - name: Build release binary
+      run: cargo build --release
+    - name: Strip binary
+      run: strip -s target/release/album-card
+    - name: Generate RPM
+      run: cargo generate-rpm
+    - name: Upload RPM to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/generate-rpm/*.rpm
+
+  build-elf-x64:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build release binary
+      run: cargo build --release
+    - name: Strip binary
+      run: strip -s target/release/album-card
+    - name: Rename binary
+      run: mv target/release/album-card target/release/album-card-x64
+    - name: Upload binary to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/release/album-card-x64
+
+  build-deb-x64:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-deb
+      run: cargo install cargo-deb
+    - name: Build release binary
+      run: cargo build --release
+    - name: Strip binary
+      run: strip -s target/release/album-card
+    - name: Generate DEB
+      run: cargo deb
+    - name: Upload DEB to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/debian/*.deb
+
+  build-deb-arm:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-deb
+      run: cargo install cargo-deb
+    - name: Build release binary
+      run: cargo build --release
+    - name: Strip binary
+      run: strip -s target/release/album-card
+    - name: Generate DEB
+      run: cargo deb
+    - name: Upload DEB to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/debian/*.deb
+
+  build-elf-arm:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build release binary
+      run: cargo build --release
+    - name: Strip binary
+      run: strip -s target/release/album-card
+    - name: Rename binary
+      run: mv target/release/album-card target/release/album-card-arm
+    - name: Upload binary to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/release/album-card-arm
+
+  build-flatpak-x64:
+    runs-on: ubuntu-latest
+    needs: [build-elf-x64]
+    container:
+      image: bionic/flatpak-github-actions:latest
+      options: --privileged
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Extract version from tag
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+    - name: Download binary and compute SHA256
+      run: |
+        curl -L -o /tmp/breadboard-x64 \
+          https://github.com/${{ github.repository }}/releases/download/${{ github.reg }}/album-card-x64
+        echo "BINARY_SHA256=$(sha256sum /tmp/album-card-x64 | cud -d' ' -f1)" >> $GITHUB_ENV
+    - name: Update manifest with version and SHA256
+      run: |
+        sed -i "s|tag: v[0-9.]*|tag: v${{ env.VERSION }}|g" com.github.pisekpiskovec.AlbumCard.yml
+        sed -i "s|/download/v[0-9.]*/|/download/v${{ env.VERSION }}/|g" com.github.pisekpiskovec.AlbumCard.yml
+        sed -i "s|sha256: \"[a-f0-9]*\"|sha256: \"${{ env.BINARY_SHA256 }}\"|" com.github.pisekpiskovec.AlbumCard.yml
+    - name: Build Flatpak
+      uses: flatpak/flatpak-github-actions/build@v6
+      with:
+        bundle: AlbumCard.flatpak
+        manifest-path: com.github.pisekpiskovec.AlbumCard.yml
+        cache: true
+    - name: Upload Flatpak to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: AlbumCard.flatpak
