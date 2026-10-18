@@ -71,7 +71,7 @@ fn whole_file(message: impl Into<String>) -> TemplError {
 pub fn read_templ(path: &Path) -> Result<Templ, TemplError> {
     let bytes = std::fs::read(path).map_err(|e| whole_file(format!("{}: {e}", path.display())))?;
     let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
-    let text = std::str::from_utf8(bytes).map_err(|_| whole_file("templat is not valid UTF-8 text"))?;
+    let text = std::str::from_utf8(bytes).map_err(|_| whole_file("template is not valid UTF-8 text"))?;
     parse_templ(text)
 }
 
