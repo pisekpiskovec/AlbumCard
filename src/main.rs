@@ -8,6 +8,7 @@ mod tests;
 use std::path::PathBuf;
 
 use adw::prelude::*;
+use gtk::gdk::BUTTON_SECONDARY;
 use gtk::{FileDialog, FileFilter};
 use relm4::prelude::*;
 use uuid::Uuid;
@@ -61,6 +62,7 @@ enum AppMsg {
     SaveAlbum,
     TrackFileChosen(PathBuf),
     LoadImageRequest,
+    ClearAlbumArt,
     ImageFileChosen(PathBuf),
     UnsavedResponse(String),
     CloseRequest,
@@ -73,11 +75,12 @@ struct AppWidgets {
     album_artist_label: gtk::Label,
     album_meta_label: gtk::Label,
     tracklist_box: gtk::Box,
-    art_placeholder: gtk::Frame,
+    art_frame: gtk::Frame,
     add_disk_action: gtk::gio::SimpleAction,
     add_track_action: gtk::gio::SimpleAction,
     add_void_action: gtk::gio::SimpleAction,
     save_button: gtk::Button,
+    del_art_action: gtk::gio::SimpleAction,
 }
 
 impl SimpleComponent for AppModel {
@@ -241,7 +244,25 @@ impl SimpleComponent for AppModel {
 
         let art_icon = gtk::Image::from_icon_name("folder-music-symbolic");
         art_icon.set_pixel_size(48);
-        let art_placeholder = gtk::Frame::builder()
+
+        let art_menu = gtk::gio::Menu::new();
+        {
+            let action = gtk::gio::SimpleAction::new("add-art", None);
+            let sender = sender.clone();
+            action.connect_activate(move |_, _| sender.input(AppMsg::LoadImageRequest));
+            relm4::main_application().add_action(&action);
+        }
+        let del_art_action = gtk::gio::SimpleAction::new("del-art", None);
+        {
+            let sender = sender.clone();
+            del_art_action.connect_activate(move |_, _| sender.input(AppMsg::ClearAlbumArt));
+            relm4::main_application().add_action(&del_art_action);
+        }
+        del_art_action.set_enabled(false);
+        art_menu.append(Some("Load Album Art"), Some("app.add-art"));
+        art_menu.append(Some("Remove Album Art"), Some("app.del-art"));
+
+        let art_frame = gtk::Frame::builder()
             .width_request(96)
             .height_request(96)
             .child(&art_icon)
@@ -252,8 +273,23 @@ impl SimpleComponent for AppModel {
             click.connect_released(move |_gesture, _n_press, _x, _y| {
                 sender.input(AppMsg::LoadImageRequest);
             });
-            art_placeholder.add_controller(click);
+            art_frame.add_controller(click);
         }
+
+        let art_popover = gtk::PopoverMenu::from_model(Some(&art_menu));
+        art_popover.set_parent(&art_frame);
+        art_popover.set_has_arrow(false);
+        art_popover.set_halign(gtk::Align::Start);
+        {
+            let popover = art_popover.clone();
+            let right_click = gtk::GestureClick::builder().button(BUTTON_SECONDARY).build();
+            right_click.connect_pressed(move |_, _, x, y| {
+                popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                popover.popup();
+            });
+            art_frame.add_controller(right_click);
+        }
+        art_frame.connect_destroy(move |_| art_popover.unparent());
 
         let album_title_label = gtk::Label::builder()
             .halign(gtk::Align::Start)
@@ -272,7 +308,7 @@ impl SimpleComponent for AppModel {
         album_text_box.append(&album_meta_label);
 
         let album_header_box = gtk::Box::new(gtk::Orientation::Horizontal, 16);
-        album_header_box.append(&art_placeholder);
+        album_header_box.append(&art_frame);
         album_header_box.append(&album_text_box);
 
         let tracklist_box = gtk::Box::new(gtk::Orientation::Vertical, 4);
@@ -300,7 +336,7 @@ impl SimpleComponent for AppModel {
         toast_overlay.set_child(Some(&content_box));
         content_toolbar.set_content(Some(&toast_overlay));
 
-        let content_page = adw::NavigationPage::new(&content_toolbar, &String::new());
+        let content_page = adw::NavigationPage::new(&content_toolbar, "");
 
         split_view.set_sidebar(Some(&sidebar_page));
         split_view.set_content(Some(&content_page));
@@ -331,11 +367,12 @@ impl SimpleComponent for AppModel {
             album_meta_label,
             tracklist_box,
             sidebar_list,
-            art_placeholder,
+            art_frame,
             add_disk_action,
             add_track_action,
             add_void_action,
             save_button,
+            del_art_action,
         };
 
         ComponentParts { model, widgets }
@@ -584,12 +621,12 @@ impl SimpleComponent for AppModel {
                         sender.input(AppMsg::ImageFileChosen(path));
                     }
                 });
-                self.album.art_path = None;
             }
             AppMsg::ImageFileChosen(art_path) => {
                 self.album.art_path = Some(art_path);
             }
             AppMsg::CloseRequest => self.leave(Pending::Quit, &sender),
+            AppMsg::ClearAlbumArt => self.album.art_path = None,
         }
     }
 
@@ -613,7 +650,7 @@ impl SimpleComponent for AppModel {
         } else {
             art_icon.set_pixel_size(96);
         }
-        widgets.art_placeholder.set_child(Some(&art_icon));
+        widgets.art_frame.set_child(Some(&art_icon));
 
         // Add menu
         let allowed = self.album.allowed_item_types();
@@ -630,6 +667,8 @@ impl SimpleComponent for AppModel {
         } else {
             widgets.save_button.remove_css_class("suggested-action");
         }
+
+        widgets.del_art_action.set_enabled(self.album.art_path.is_some());
 
         let _ = &widgets.split_view;
     }
