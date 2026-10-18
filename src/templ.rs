@@ -4,31 +4,18 @@ use std::path::{Path, PathBuf};
 use crate::models::track::TrackEdit;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum TemplAlbumArtMode {
+pub enum TemplAlbumArtMode {
     Change(PathBuf),
     Clear,
     Keep,
 }
 
 impl TemplAlbumArtMode {
-    fn transform(
-        value: Option<&str>,
-        n: usize,
-        path: String,
-        what: &str,
-    ) -> Result<Option<TemplAlbumArtMode>, TemplError> {
-        let Some(raw) = value else {
-            return Ok(None);
-        };
-        let bad = |why: &str| TemplError {
-            line: Some(n),
-            message: format!("{what}: {why} (got \"{raw}\")"),
-        };
-        let parsed: String = raw.parse().map_err(|_| bad("expected a mode"))?;
-        match parsed.as_str() {
-            "null" | "empty" => Ok(Some(TemplAlbumArtMode::Clear)),
-            "custom" | "my" | "file" | "own" => Ok(Some(TemplAlbumArtMode::Change(PathBuf::from(path)))),
-            "skip" | "" | _ => Ok(Some(TemplAlbumArtMode::Keep)),
+    fn transform(value: String) -> TemplAlbumArtMode {
+        match value.as_str() {
+            "null" | "empty" => TemplAlbumArtMode::Clear,
+            "custom" | "my" | "file" | "own" => TemplAlbumArtMode::Change(PathBuf::from("")),
+            "skip" | "" | _ => TemplAlbumArtMode::Keep,
         }
     }
 }
@@ -138,12 +125,7 @@ pub fn parse_templ(text: &str) -> Result<Templ, TemplError> {
         youtube_rating: number(line(15), 15, 255, "YouTube rating")?,
         youtube_music_rating: number(line(19), 19, 255, "YouTube Music rating")?,
         soundcloud_rating: number(line(16), 16, 255, "SoundCloud rating")?,
-        art_mode: text_field(17).map(TemplAlbumArtMode::transform(
-            line(17),
-            17,
-            text_field(18).expect("path where?"),
-            "album art mode",
-        ))?,
+        art_mode: text_field(17).map(TemplAlbumArtMode::transform),
         art_path: text_field(18).map(PathBuf::from),
     })
 }
