@@ -147,7 +147,7 @@ impl Templ {
         if let Some(v) = &self.artist {
             edit.artist = inherit(v, album_artist);
         }
-        if let Some(v) = &self.title {
+        if let Some(v) = &self.genre {
             edit.genre = inherit(v, album_genre);
         }
         if let Some(v) = &self.composer {
