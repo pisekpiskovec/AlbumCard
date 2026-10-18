@@ -1,7 +1,7 @@
 use core::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::models::track::TrackEdit;
+use crate::models::{album::ArtChange, track::TrackEdit};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplAlbumArtMode {
@@ -168,5 +168,18 @@ impl Templ {
             _ => rating,
         };
         u8::try_from(raw).ok().filter(|&r| r > 0)
+    }
+
+    /// What the template wants done with the album art.
+    /// A relative path in the template is resolver against the template's own folder.
+    pub fn art_change(&self, template_dir: &Path) -> ArtChange {
+        match (&self.art_mode, &self.art_path) {
+            (Some(TemplAlbumArtMode::Clear), _) => ArtChange::Clear,
+            (Some(TemplAlbumArtMode::Change(_)), Some(p)) if p.is_relative() => {
+                ArtChange::Set(template_dir.join(p))
+            }
+            (Some(TemplAlbumArtMode::Change(_)), Some(p)) => ArtChange::Set(p.clone()),
+            _ => ArtChange::Keep,
+        }
     }
 }

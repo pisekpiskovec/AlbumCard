@@ -4,10 +4,10 @@ use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
 
-use crate::models::{
+use crate::{dialogs::choose_template, models::{
     album::{Album, AlbumEdit, AlbumMode},
     track::Track,
-};
+}, templ};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlbumEditPurpose {
@@ -22,6 +22,7 @@ pub enum AlbumEditMsg {
     ReleaseDateChanged(String),
     GenreChanged(String),
     ModeChanged(AlbumMode),
+    TemplateChosen(PathBuf),
     Save,
     Cancel,
 }
@@ -41,6 +42,9 @@ pub struct AlbumEditDialog {
 pub struct AlbumEditWidgets {
     release_date_button: gtk::MenuButton,
     toast_overlay: adw::ToastOverlay,
+    title_row: adw::EntryRow,
+    artist_row: adw::EntryRow,
+    genre_row: adw::EntryRow,
 }
 
 fn release_date_label(value: &str) -> &str {
@@ -80,6 +84,17 @@ impl Component for AlbumEditDialog {
         }
 
         let header = adw::HeaderBar::new();
+        let template_button = gtk::Button::from_icon_name("folder-templates-symbolic");
+        template_button.set_tooltip("Load Template");
+        {
+            let sender = sender.clone();
+            template_button.connect_clicked(move |button| {
+                let sender = sender.clone();
+                choose_template(button, move |path| sender.input(AlbumEditMsg::TemplateChosen(path)));
+            });
+        }
+        header.pack_start(&template_button);
+
         let save_button = gtk::Button::with_label(match purpose {
             AlbumEditPurpose::New => "Create",
             AlbumEditPurpose::Edit => "Save",
@@ -140,14 +155,14 @@ impl Component for AlbumEditDialog {
                     sender.input(AlbumEditMsg::$variant(row.text().to_string()));
                 });
                 group.add(&row);
+                row
             }};
         }
 
-        entry_row!("Title", title, TitleChanged);
-        entry_row!("Artist", album_artist, ArtistChanged);
+        let title_row = entry_row!("Title", title, TitleChanged);
+        let artist_row = entry_row!("Artist", album_artist, ArtistChanged);
 
         // Release date
-
         let calendar = gtk::Calendar::new();
         if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
             calendar.set_year(parsed.year());
@@ -193,7 +208,7 @@ impl Component for AlbumEditDialog {
         release_date_row.add_suffix(&release_date_button);
         group.add(&release_date_row);
 
-        entry_row!("Genre", genre, GenreChanged);
+        let genre_row = entry_row!("Genre", genre, GenreChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
@@ -223,6 +238,9 @@ impl Component for AlbumEditDialog {
         let widgets = AlbumEditWidgets {
             release_date_button,
             toast_overlay,
+            title_row,
+            artist_row,
+            genre_row,
         };
 
         ComponentParts { model, widgets }
@@ -272,6 +290,30 @@ impl Component for AlbumEditDialog {
                 sender.output(AlbumEditOutput::Cancelled).ok();
                 return;
             }
+            AlbumEditMsg::TemplateChosen(path) => match templ::read_templ(&path) {
+                Err(e) => widgets.toast_overlay.add_toast(adw::Toast::new(&format!("Couldn't load template: {e}"))),
+                Ok(t) => {
+                    if let Some(v) = &t.album { widgets.title_row.set_text(v); }
+                    if let Some(v) = &t.album_artist { widgets.artist_row.set_text(v); }
+                    if let Some(v) = &t.genre { widgets.genre_row.set_text(v); }
+                    if let Some(r) = &t.rating_raw() { self.edit.rating = Some(*r); }
+
+                    let dir = path.parent().unwrap_or(std::path::Path::new("."));
+                    match t.art_change(dir) {
+                        crate::models::album::ArtChange::Set(p) if !p.is_file() => widgets.toast_overlay.add_toast(adw::Toast::new(&format!("Album art not found: {}", p.display())),
+                        ),
+                        change => {
+                            let note = match &change {
+                                crate::models::album::ArtChange::Clear => Some("Album art will be cleared on Save"),
+                                crate::models::album::ArtChange::Set(_) => Some("Album art will be replaced on Save"),
+                                crate::models::album::ArtChange::Keep => None
+                            };
+                            self.edit.art = change;
+                            widgets.toast_overlay.add_toast(adw::Toast::new(note.unwrap_or("Template loaded")));
+                        }
+                    }
+                }
+            },
         }
 
         widgets
