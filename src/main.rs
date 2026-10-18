@@ -545,6 +545,7 @@ impl SimpleComponent for AppModel {
                     return;
                 }
                 self.save_everything();
+                self.toast("Album saved successfully.");
             }
             AppMsg::TrackFileChosen(path) => {
                 let edit = match tags::read_track_edit(&path, &self.album.album_artist, &self.album.genre) {
