@@ -16,6 +16,11 @@ pub enum TrackEditMsg {
     ComposerChanged(String),
     LyricistChanged(String),
     RemixerChanged(String),
+    SortAlbumTitleChanged(String),
+    SortAlbumArtistChanged(String),
+    SortComposerChanged(String),
+    SortPerformerChanged(String),
+    SortTrackTitleChanged(String),
     Save,
     Cancel,
 }
@@ -86,9 +91,14 @@ impl Component for TrackEditDialog {
             save_button.set_label("Add");
         }
 
-        let group = adw::PreferencesGroup::new();
+        let group = adw::PreferencesPage::new();
+        let details_group = adw::PreferencesGroup::new();
+        details_group.set_title("Track Details");
 
-        macro_rules! entry_row {
+        let sorting_group = adw::PreferencesGroup::new();
+        sorting_group.set_title("Sorting Details");
+
+        macro_rules! details_entry_row {
             ($title:literal, $field:ident, $variant:ident) => {{
                 let row = adw::EntryRow::builder()
                     .title($title)
@@ -98,7 +108,21 @@ impl Component for TrackEditDialog {
                 row.connect_changed(move |row| {
                     sender.input(TrackEditMsg::$variant(row.text().to_string()));
                 });
-                group.add(&row);
+                details_group.add(&row);
+            }};
+        }
+
+        macro_rules! sorting_entry_row {
+            ($title:literal, $field:ident, $variant:ident) => {{
+                let row = adw::EntryRow::builder()
+                    .title($title)
+                    .text(edit.$field.as_str())
+                    .build();
+                let sender = sender.clone();
+                row.connect_changed(move |row| {
+                    sender.input(TrackEditMsg::$variant(row.text().to_string()));
+                });
+                sorting_group.add(&row);
             }};
         }
 
@@ -108,10 +132,10 @@ impl Component for TrackEditDialog {
             .subtitle(edit.file_path.to_str().expect("Valid path"))
             .css_classes(vec!["property"])
             .build();
-        group.add(&path_row);
+        details_group.add(&path_row);
 
-        entry_row!("Title", title, TitleChanged);
-        entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
+        details_entry_row!("Title", title, TitleChanged);
+        details_entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
 
         let calendar = gtk::Calendar::new();
         if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
@@ -156,13 +180,22 @@ impl Component for TrackEditDialog {
             .activatable_widget(&release_date_button)
             .build();
         release_date_row.add_suffix(&release_date_button);
-        group.add(&release_date_row);
+        details_group.add(&release_date_row);
 
-        entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
-        entry_row!("Performer", performer, PerformerChanged);
-        entry_row!("Composer", composer, ComposerChanged);
-        entry_row!("Lyricist", lyricist, LyricistChanged);
-        entry_row!("Remixer", remixer, RemixerChanged);
+        details_entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
+        details_entry_row!("Performer", performer, PerformerChanged);
+        details_entry_row!("Composer", composer, ComposerChanged);
+        details_entry_row!("Lyricist", lyricist, LyricistChanged);
+        details_entry_row!("Remixer", remixer, RemixerChanged);
+
+        sorting_entry_row!("Sort Album", sort_album_title, SortAlbumTitleChanged);
+        sorting_entry_row!("Sort Title", sort_track_title, SortTrackTitleChanged);
+        sorting_entry_row!("Sort Artist", sort_album_artist, SortAlbumArtistChanged);
+        sorting_entry_row!("Sort Performer", sort_performer, SortPerformerChanged);
+        sorting_entry_row!("Sort Composer", sort_composer, SortComposerChanged);
+
+        group.add(&details_group);
+        group.add(&sorting_group);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
@@ -209,6 +242,11 @@ impl Component for TrackEditDialog {
             TrackEditMsg::ComposerChanged(v) => self.edit.composer = v,
             TrackEditMsg::LyricistChanged(v) => self.edit.lyricist = v,
             TrackEditMsg::RemixerChanged(v) => self.edit.remixer = v,
+            TrackEditMsg::SortAlbumTitleChanged(v) => self.edit.sort_album_title = v,
+            TrackEditMsg::SortAlbumArtistChanged(v) => self.edit.sort_album_artist = v,
+            TrackEditMsg::SortComposerChanged(v) => self.edit.sort_composer = v,
+            TrackEditMsg::SortPerformerChanged(v) => self.edit.sort_performer = v,
+            TrackEditMsg::SortTrackTitleChanged(v) => self.edit.sort_track_title = v,
             TrackEditMsg::Save => {
                 let mut scratch = Track::default();
                 match scratch.apply_edit(self.edit.clone()) {
