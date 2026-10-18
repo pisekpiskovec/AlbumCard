@@ -52,6 +52,14 @@ pub struct AlbumEdit {
     pub genre: String,
     pub mode: AlbumMode,
     pub rating: Option<u8>,
+    pub art: ArtChange,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum ArtChange {
+    #[default] Keep,
+    Clear,
+    Set(PathBuf),
 }
 
 impl std::fmt::Display for AlbumItemPosition {
@@ -303,6 +311,12 @@ impl Album {
         self.genre = edit.genre.trim().to_string();
         self.mode = edit.mode;
         self.rating = edit.rating.filter(|&r| r > 0);
+
+        match edit.art {
+            ArtChange::Keep => {},
+            ArtChange::Clear => self.art_path = None,
+            ArtChange::Set(path) => self.art_path = Some(path),
+        }
 
         Ok(())
     }

@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::config::VERSION;
 use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
 use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput, TrackEditTarget};
-use crate::models::album::AlbumEdit;
+use crate::models::album::{AlbumEdit, ArtChange};
 use crate::models::track::TrackEdit;
 use crate::models::{
     album::{Album, AlbumItem, AlbumItemType, AlbumMode},
@@ -396,6 +396,7 @@ impl SimpleComponent for AppModel {
                     genre: self.album.genre.clone(),
                     mode: self.album.mode,
                     rating: self.album.rating,
+                    art: ArtChange::Keep,
                 };
                 let could_be_single = self.album.could_be_single();
                 let dialog = AlbumEditDialog::builder()
@@ -694,6 +695,7 @@ impl AppModel {
                     genre: String::new(),
                     mode: AlbumMode::Ep,
                     rating: None,
+                    art: ArtChange::Keep,
                 };
                 let dialog = AlbumEditDialog::builder()
                     .launch((AlbumEditPurpose::New, edit, true))
