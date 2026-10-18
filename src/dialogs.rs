@@ -8,7 +8,7 @@ pub mod track_edit;
 pub fn choose_template<W: IsA<gtk::Widget>>(anchor: &W, on_pick: impl FnOnce(PathBuf) + 'static) {
     let filter = gtk::FileFilter::new();
     filter.add_suffix("templ");
-    filter.set_name(Some("Templates"));
+    filter.set_name(Some("Template"));
     let dialog = gtk::FileDialog::builder()
         .title("Load Template")
         .default_filter(&filter)

@@ -157,4 +157,16 @@ impl Templ {
             edit.remixer = v.clone();
         }
     }
+
+    pub fn rating_raw(&self) -> Option<u8> {
+        let rating = u32::from(self.rating?);
+        let raw = match self.max_rating {
+            Some(max) if max > 0 => {
+                let max = u32::from(max);
+                (rating.min(max) * 255 + max / 2) / max
+            }
+            _ => rating,
+        };
+        u8::try_from(raw).ok().filter(|&r| r > 0)
+    }
 }

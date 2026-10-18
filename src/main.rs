@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::config::VERSION;
 use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
-use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput, TrackEditTarget};
+use crate::dialogs::track_edit::{AlbumDefaults, TrackEditDialog, TrackEditOutput, TrackEditTarget};
 use crate::models::album::{AlbumEdit, ArtChange};
 use crate::models::track::TrackEdit;
 use crate::models::{
@@ -449,7 +449,7 @@ impl SimpleComponent for AppModel {
                     return;
                 };
                 let dialog = TrackEditDialog::builder()
-                    .launch((TrackEditTarget::Existing(index), track.edit_snapshot()))
+                    .launch((TrackEditTarget::Existing(index), track.edit_snapshot(), AlbumDefaults { artist: self.album.album_artist.clone(), genre: self.album.genre.clone()}))
                     .forward(sender.input_sender(), AppMsg::TrackEditResult);
                 dialog.widget().present(Some(&self.window));
 
@@ -566,7 +566,7 @@ impl SimpleComponent for AppModel {
                     }
                 };
                 let dialog = TrackEditDialog::builder()
-                    .launch((TrackEditTarget::New(path), edit))
+                    .launch((TrackEditTarget::New(path), edit, AlbumDefaults { artist: self.album.album_artist.clone(), genre: self.album.genre.clone()}))
                     .forward(sender.input_sender(), AppMsg::TrackEditResult);
                 dialog.widget().present(Some(&self.window));
                 self.track_edit_dialog = Some(dialog);

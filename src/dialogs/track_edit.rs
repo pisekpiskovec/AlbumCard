@@ -4,7 +4,13 @@ use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
 
-use crate::models::track::{Track, TrackEdit, TrackFieldError};
+use crate::{dialogs::choose_template, models::track::{Track, TrackEdit, TrackFieldError}, templ};
+
+#[derive(Debug, Clone, Default)]
+pub struct AlbumDefaults {
+    pub artist: String,
+    pub genre: String,
+}
 
 #[derive(Debug)]
 pub enum TrackEditMsg {
@@ -16,6 +22,7 @@ pub enum TrackEditMsg {
     ComposerChanged(String),
     LyricistChanged(String),
     RemixerChanged(String),
+    TemplateChosen(PathBuf),
     Save,
     Cancel,
 }
@@ -34,11 +41,17 @@ pub enum TrackEditTarget {
 pub struct TrackEditDialog {
     target: TrackEditTarget,
     edit: TrackEdit,
+    defaults: AlbumDefaults,
 }
 
 pub struct TrackEditWidgets {
     release_date_button: gtk::MenuButton,
     toast_overlay: adw::ToastOverlay,
+    title_row: adw::EntryRow,
+    artist_row: adw::EntryRow,
+    genre_row: adw::EntryRow,
+    composer_row: adw::EntryRow,
+    remixer_row: adw::EntryRow,
 }
 
 fn release_date_label(value: &str) -> &str {
@@ -51,7 +64,7 @@ fn release_date_label(value: &str) -> &str {
 impl Component for TrackEditDialog {
     type Input = TrackEditMsg;
     type Output = TrackEditOutput;
-    type Init = (TrackEditTarget, TrackEdit);
+    type Init = (TrackEditTarget, TrackEdit, AlbumDefaults);
     type Root = adw::Dialog;
     type Widgets = TrackEditWidgets;
     type CommandOutput = ();
@@ -65,7 +78,7 @@ impl Component for TrackEditDialog {
     }
 
     fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        let (target, edit) = init;
+        let (target, edit, defaults) = init;
 
         {
             let sender = sender.clone();
@@ -73,6 +86,17 @@ impl Component for TrackEditDialog {
         }
 
         let header = adw::HeaderBar::new();
+        let template_button = gtk::Button::from_icon_name("folder-templates-symbolic");
+        template_button.set_tooltip("Load Template");
+        {
+            let sender = sender.clone();
+            template_button.connect_clicked(move |button| {
+                let sender = sender.clone();
+                choose_template(button, move |path| sender.input(TrackEditMsg::TemplateChosen(path)));
+            });
+        }
+        header.pack_start(&template_button);
+
         let save_button = gtk::Button::with_label("Save");
         save_button.add_css_class("suggested-action");
         {
@@ -99,6 +123,7 @@ impl Component for TrackEditDialog {
                     sender.input(TrackEditMsg::$variant(row.text().to_string()));
                 });
                 group.add(&row);
+                row
             }};
         }
 
@@ -110,8 +135,8 @@ impl Component for TrackEditDialog {
             .build();
         group.add(&path_row);
 
-        entry_row!("Title", title, TitleChanged);
-        entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
+        let title_row = entry_row!("Title", title, TitleChanged);
+        let genre_row = entry_row!("Genre (blank to use album genre)", genre, GenreChanged);
 
         let calendar = gtk::Calendar::new();
         if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
@@ -158,11 +183,11 @@ impl Component for TrackEditDialog {
         release_date_row.add_suffix(&release_date_button);
         group.add(&release_date_row);
 
-        entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
-        entry_row!("Performer", performer, PerformerChanged);
-        entry_row!("Composer", composer, ComposerChanged);
-        entry_row!("Lyricist", lyricist, LyricistChanged);
-        entry_row!("Remixer", remixer, RemixerChanged);
+        let artist_row = entry_row!("Artist (blank to use album artist)", artist, ArtistChanged);
+        let _preformer_row = entry_row!("Performer", performer, PerformerChanged);
+        let composer_row = entry_row!("Composer", composer, ComposerChanged);
+        let _lyricist_row = entry_row!("Lyricist", lyricist, LyricistChanged);
+        let remixer_row = entry_row!("Remixer", remixer, RemixerChanged);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
@@ -184,10 +209,15 @@ impl Component for TrackEditDialog {
 
         root.set_child(Some(&toolbar_view));
 
-        let model = TrackEditDialog { target, edit };
+        let model = TrackEditDialog { target, edit, defaults };
         let widgets = TrackEditWidgets {
             release_date_button,
             toast_overlay,
+            title_row,
+            artist_row,
+            genre_row,
+            composer_row,
+            remixer_row,
         };
 
         ComponentParts { model, widgets }
@@ -237,6 +267,22 @@ impl Component for TrackEditDialog {
             TrackEditMsg::Cancel => {
                 sender.output(TrackEditOutput::Cancelled).ok();
             }
+            TrackEditMsg::TemplateChosen(path) => match templ::read_templ(&path) {
+                Err(e) => widgets.toast_overlay.add_toast(adw::Toast::new(&format!("Couldn't load template: {e}"))),
+                Ok(t) => {
+                    let mut filled = self.edit.clone();
+                    t.apply_to_track_edit(&mut filled, &self.defaults.artist, &self.defaults.genre);
+                    widgets.title_row.set_text(&filled.title);
+                    widgets.artist_row.set_text(&filled.artist);
+                    widgets.genre_row.set_text(&filled.genre);
+                    widgets.composer_row.set_text(&filled.composer);
+                    widgets.remixer_row.set_text(&filled.remixer);
+                    if let Some(r) = t.rating_raw() {
+                        self.edit.rating = Some(r);
+                    }
+                    widgets.toast_overlay.add_toast(adw::Toast::new("Template loaded"));
+                }
+            },
         }
 
         widgets
