@@ -22,6 +22,7 @@ use lofty::{
     config::{ParseOptions, WriteOptions},
     file::{AudioFile, FileType, TaggedFileExt},
     flac::FlacFile,
+    id3::v2::{Id3v2Tag, PopularimeterFrame},
     mp4::{Atom, AtomData, AtomIdent, Mp4File},
     mpeg::MpegFile,
     ogg::{OpusFile, VorbisFile},
@@ -103,6 +104,34 @@ fn read_custom(path: &Path, name: &str) -> Option<String> {
     }
 }
 
+/// ID3v2 `POPM` frames are keyed by an owner string. This is the one
+/// Windows Media Player and Windows Explorer use, so it is the most widley understood.
+const POPM_OWNER: &str = "Windows Media Player 9 Series";
+
+/// Vorbis comments and MP4 have no rating standard.
+const RATING_FIELD: &str = "RATING";
+
+/// The file's rating (0-255), if it has a non-zero one.
+pub fn read_rating(path: &Path) -> Option<u8> {
+    let rating = if FileType::from_path(path) == Some(FileType::Mpeg) {
+        let mut file = File::open(path).ok()?;
+        let f = MpegFile::read_from(&mut file, parse_opts()).ok()?;
+        let tag = f.id3v2()?;
+        let mut popm = tag.into_iter().filter_map(|fr| match fr {
+            lofty::id3::v2::Frame::Popularimeter(p) => Some(p),
+            _ => None,
+        });
+        let all: Vec<&PopularimeterFrame<'_>> = popm.by_ref().collect();
+        all.iter()
+            .find(|p| p.email == POPM_OWNER)
+            .or_else(|| all.first())
+            .map(|p| p.rating)?
+    } else {
+        read_custom(path, RATING_FIELD)?.trim().parse::<u8>().ok()?
+    };
+    (rating > 0).then_some(rating)
+}
+
 /// Reads the tags of `path` into a `TrackEdit`, ready to prefill the edit dialog.
 /// Never invents data: a missing title falls back to the filename
 /// (so the track passes validation), everythin else stays blank.
@@ -157,6 +186,7 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
 
     Ok(TrackEdit {
         file_path: path.to_path_buf(),
+        rating: read_rating(path),
         title,
         artist: inherit(tag.artist().map(|a| a.trim().to_string()).unwrap_or_default(), album_artist),
         genre: inherit(tag.genre().map(|g| g.trim().to_string()).unwrap_or_default(), album_genre),
@@ -210,9 +240,13 @@ fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, Ta
     match ft {
         Some(FileType::Mpeg) => {
             let mut f = MpegFile::read_from(&mut file, parse_options).map_err(err)?;
-            let Some(tag) = f.id3v2_mut() else {
-                return Ok(value.is_none());
-            };
+            if f.id3v2().is_none() {
+                if value.is_none() {
+                    return Ok(true);
+                }
+                f.set_id3v2(Id3v2Tag::new());
+            }
+            let tag = f.id3v2_mut().expect("an ID3v2 tag exists at this point");
             tag.remove_user_text(name);
             if let Some(v) = value {
                 tag.insert_user_text(name.to_string(), v.to_string());
@@ -283,6 +317,40 @@ fn load_cover(path: &Path) -> Result<Picture, TagError> {
     Ok(picture)
 }
 
+/// Sets (`Some`) or clears (`None`/0) the file's rating.
+/// `Ok(false)` if this formaz has nowhere to store it.
+pub fn write_rating(path: &Path, rating: Option<u8>) -> Result<bool, TagError> {
+    let rating = rating.filter(|&r| r > 0);
+    if FileType::from_path(path) != Some(FileType::Mpeg) {
+        let text = rating.map(|r| r.to_string());
+        return write_custom(path, RATING_FIELD, text.as_deref());
+    }
+
+    let mut file = File::options().read(true).write(true).open(path)?;
+    let mut f = MpegFile::read_from(&mut file, parse_opts()).map_err(err)?;
+    if f.id3v2().is_none() {
+        if rating.is_none() {
+            return Ok(true); // nothing to clear
+        }
+        f.set_id3v2(Id3v2Tag::new());
+    }
+
+    let tag = f.id3v2_mut().expect("an ID3v2 tag exists at this point");
+    let counter = (&*tag)
+        .into_iter()
+        .find_map(|fr| match fr {
+            lofty::id3::v2::Frame::Popularimeter(p) if p.email == POPM_OWNER => Some(p.counter),
+            _ => None,
+        })
+        .unwrap_or(0);
+    tag.retain(|fr| !matches!(fr, lofty::id3::v2::Frame::Popularimeter(p) if p.email == POPM_OWNER));
+    if let Some(r) = rating {
+        tag.insert(lofty::id3::v2::Frame::Popularimeter(PopularimeterFrame::new(POPM_OWNER, r, counter)));
+    }
+    f.save_to_path(path, write_opts()).map_err(err)?;
+    Ok(true)
+}
+
 fn write_track_inner(
     album: &Album,
     track: &crate::models::track::Track,
@@ -304,7 +372,7 @@ fn write_track_inner(
 
     let tag = tagged
         .primary_tag_mut()
-        .expect("a tag wa inserted just above if none existed");
+        .expect("a tag was inserted just above if none existed");
 
     tag.set_title(track.title.clone());
     tag.set_artist(track.effective_artist(album).to_string());
@@ -349,6 +417,8 @@ fn write_track_inner(
         ("sort performer", ItemKey::TrackArtistSortOrder, track.sort_performer.as_deref()),
         ("sort track title", ItemKey::TrackTitleSortOrder, track.sort_track_title.as_deref()),
     ];
+
+    // (field label, custom name, value) for fields the generic tag can't hold.
     let mut custom: Vec<(&'static str, &'static str, Option<String>)> = Vec::new();
     for (name, key, value) in fields {
         let stored = put(tag, key, value);
@@ -367,6 +437,10 @@ fn write_track_inner(
     }
 
     tagged.save_to_path(path, write_opts()).map_err(err)?;
+
+    if !write_rating(path, track.effective_rating(album))? {
+        unsupported.push("rating");
+    }
 
     for (label, cn, value) in custom {
         if !write_custom(path, cn, value.as_deref())? {

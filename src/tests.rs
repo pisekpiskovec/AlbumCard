@@ -1,10 +1,11 @@
 #![cfg(test)]
 
-use std::path::PathBuf;
+use std::{fs::create_dir, path::PathBuf};
 
 use crate::{
     models::{
-        album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
+        album::{Album, AlbumEdit, AlbumItem, AlbumItemPosition, AlbumMode::*},
+        rating::{raw_to_stars, stars_to_raw},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
     },
     tags::{read_track_edit, write_album_tags},
@@ -46,6 +47,7 @@ fn parsing_album_items() {
         sort_composer: None,
         sort_performer: None,
         sort_track_title: None,
+        rating: None,
     };
 
     let mut album =
@@ -235,6 +237,7 @@ fn apply_edit_trims_and_normalizes_fields() {
         sort_performer: String::new(),
         sort_track_title: String::new(),
         file_path: PathBuf::new(),
+        rating: None,
     };
 
     assert!(track.apply_edit(edit).is_ok());
@@ -440,6 +443,7 @@ fn every_edit_field_survives_an_id3_round_trip() {
         sort_composer: "sortC".into(),
         sort_performer: "sortP".into(),
         sort_track_title: "sortTT".into(),
+        rating: None,
     })
     .unwrap();
     album.add_track(t.clone());
@@ -466,6 +470,64 @@ fn every_edit_field_survives_an_id3_round_trip() {
             sort_composer: "sortC".into(),
             sort_performer: "sortP".into(),
             sort_track_title: "sortTT".into(),
+            rating: None,
         }
     );
+}
+#[test]
+fn start_and_raw_round_trip() {
+    for stars in 0..=5u8 {
+        assert_eq!(raw_to_stars(stars_to_raw(stars)), stars);
+    }
+    assert_eq!(raw_to_stars(200), 4);
+    assert_eq!(raw_to_stars(255), 5);
+    assert_eq!(raw_to_stars(31), 1);
+    assert_eq!(raw_to_stars(32), 2);
+}
+
+#[test]
+fn album_rating_goes_to_every_track_and_a_track_rating_wins() {
+    let (p1, p2) = (silent_mp3("rating-one.mp3"), silent_mp3("rating-two.mp3"));
+
+    let mut album = album_with_rating(Some(200));
+    let mut t1 = Track::new(p1.clone());
+    t1.apply_edit(TrackEdit {
+        title: "One".into(),
+        ..TrackEdit::default()
+    })
+    .unwrap();
+    let mut t2 = Track::new(p2.clone());
+    t2.apply_edit(TrackEdit {
+        title: "Two".into(),
+        rating: Some(64),
+        ..TrackEdit::default()
+    })
+    .unwrap();
+    album.add_track(t1);
+    album.add_track(t2);
+
+    let summary = write_album_tags(&album);
+    assert_eq!(summary.failures().count(), 0);
+    assert!(summary.reports.iter().all(|r| r.unsupported.is_empty()));
+    assert_eq!(read_rating(&p1), Some(200)); // inhereted from the album
+    assert_eq!(read_rating(&p2), Some(64)); // its own rating
+
+    // Clearing everything clears the files.
+    let mut album = album_with_rating(None);
+    let mut t1 = Track::new(p1.clone());
+    t1.apply_edit(TrackEdit {
+        title: "One".into(),
+        ..TrackEdit::default()
+    })
+    .unwrap();
+    album.add_track(t1);
+    write_album_tags(&album);
+    assert_eq!(read_rating(&p1), None);
+}
+
+#[test]
+fn prefill_reads_the_rating_back() {
+    let p = silent_mp3("rating-prefill.mp3");
+    assert!(write_rating(&p, Some(128)).unwrap());
+    assert_eq!(read_track_edit(&p, "", "").unwrap().rating, Some(128));
 }
