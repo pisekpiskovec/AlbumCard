@@ -8,7 +8,8 @@ use crate::{
         rating::{raw_to_stars, stars_to_raw},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
     },
-    tags::{read_track_edit, write_album_tags},
+    tags::{read_rating, read_track_edit, write_album_tags, write_rating},
+    templ::{Templ, TemplAlbumArtMode, parse_templ, read_templ},
 };
 
 fn silent_mp3(name: &str) -> PathBuf {
@@ -28,6 +29,20 @@ fn track_at(path: PathBuf, title: &str) -> Track {
     let mut t = Track::new(path);
     t.title = title.to_string();
     t
+}
+
+fn album_with_rating(rating: Option<u8>) -> Album {
+    let mut a = Album::new(Ep, "Album", "Artist", "", "Genre", None).unwrap();
+    a.apply_edit(AlbumEdit {
+        title: "A".into(),
+        album_artist: "Artist".into(),
+        release_date: String::new(),
+        genre: "Genre".into(),
+        mode: Ep,
+        rating: rating,
+    })
+    .unwrap();
+    a
 }
 
 #[test]
@@ -474,6 +489,124 @@ fn every_edit_field_survives_an_id3_round_trip() {
         }
     );
 }
+
+const TEMPL1: &str = "MDK|Evan King\nJelly Castle (Evan King Retro Mix)\nJelly Castle\n2013\n10\n0\nElectronic|Retro\nMDK\nMDK\nEvan King\n0\n0\n0\n0\n0\n0\nfile\n/home/pisek/Obrázky/2P.png\n";
+const TEMPL1A: &str = "MDK|Evan King\nJelly Castle (Evan King Retro Mix)\nJelly Castle\n2013\n10\n0\nElectronic|Retro\nMDK\nMDK\nEvan King\n0\n0\n0\n0\n0\n0\nfile\n/home/pisek/Obrázky/2P.png\n0";
+
+#[test]
+fn parses_a_full_templ1_file() {
+    let t = parse_templ(TEMPL1).unwrap();
+    assert_eq!(t.artist.as_deref(), Some("MDK; Evan King"));
+    assert_eq!(t.title.as_deref(), Some("Jelly Castle (Evan King Retro Mix)"));
+    assert_eq!(t.album.as_deref(), Some("Jelly Castle"));
+    assert_eq!(t.year, Some(2013));
+    assert_eq!(t.track, Some(10));
+    assert_eq!(t.disc, Some(0));
+    assert_eq!(t.genre.as_deref(), Some("Electronic; Retro"));
+    assert_eq!(t.album_artist.as_deref(), Some("MDK"));
+    assert_eq!(t.composer.as_deref(), Some("MDK"));
+    assert_eq!(t.remixer.as_deref(), Some("Evan King"));
+    assert_eq!(t.rating, Some(0));
+    assert_eq!(t.max_rating, Some(0));
+    assert_eq!(t.spotify_rating, Some(0));
+    assert_eq!(t.max_spotify_rating, Some(0));
+    assert_eq!(t.youtube_rating, Some(0));
+    assert_eq!(t.soundcloud_rating, Some(0));
+    assert_eq!(t.art_mode, Some(TemplAlbumArtMode::Change(PathBuf::new())));
+    assert_eq!(t.art_path.as_deref(), Some(std::path::Path::new("/home/pisek/Obrázky/2P.png")));
+}
+
+#[test]
+fn parses_a_full_templ1a_file() {
+    let t = parse_templ(TEMPL1A).unwrap();
+    assert_eq!(t.artist.as_deref(), Some("MDK; Evan King"));
+    assert_eq!(t.title.as_deref(), Some("Jelly Castle (Evan King Retro Mix)"));
+    assert_eq!(t.album.as_deref(), Some("Jelly Castle"));
+    assert_eq!(t.year, Some(2013));
+    assert_eq!(t.track, Some(10));
+    assert_eq!(t.disc, Some(0));
+    assert_eq!(t.genre.as_deref(), Some("Electronic; Retro"));
+    assert_eq!(t.album_artist.as_deref(), Some("MDK"));
+    assert_eq!(t.composer.as_deref(), Some("MDK"));
+    assert_eq!(t.remixer.as_deref(), Some("Evan King"));
+    assert_eq!(t.rating, Some(0));
+    assert_eq!(t.max_rating, Some(0));
+    assert_eq!(t.spotify_rating, Some(0));
+    assert_eq!(t.max_spotify_rating, Some(0));
+    assert_eq!(t.youtube_rating, Some(0));
+    assert_eq!(t.soundcloud_rating, Some(0));
+    assert_eq!(t.art_mode, Some(TemplAlbumArtMode::Change(PathBuf::new())));
+    assert_eq!(t.art_path.as_deref(), Some(std::path::Path::new("/home/pisek/Obrázky/2P.png")));
+    assert_eq!(t.youtube_music_rating, Some(0));
+}
+
+#[test]
+fn templ1_and_short_files_are_fine() {
+    let t = parse_templ(TEMPL1).unwrap();
+    assert_eq!(t.youtube_music_rating, None);
+    assert_eq!(t.rating, Some(0));
+    let short = parse_templ("Artist\nTitle").unwrap();
+    assert_eq!(short.title.as_deref(), Some("Title"));
+    assert_eq!(short.album, None);
+}
+
+#[test]
+fn empty_lines_are_skipped_not_cleared() {
+    let t = parse_templ("\nTitle\n\n\n\n\n\n\n\n\n\n").unwrap();
+    assert_eq!(t.artist, None);
+    assert_eq!(t.title.as_deref(), Some("Title"));
+    assert_eq!(t.rating, None);
+    assert_eq!(parse_templ("").unwrap(), Templ::default());
+}
+
+#[test]
+fn crlf_and_bom_are_handled() {
+    let crlf = TEMPL1.replace('\n', "\r\n");
+    assert_eq!(parse_templ(&crlf).unwrap(), parse_templ(TEMPL1).unwrap());
+    let dir = std::env::temp_dir().join("album_card_templ_bom");
+    std::fs::create_dir_all(&dir).unwrap();
+    let p = dir.join("a.templ");
+    let mut bytes = vec![0xEF, 0xBB, 0xBF];
+    bytes.extend_from_slice(TEMPL1.as_bytes());
+    std::fs::write(&p, bytes).unwrap();
+    assert_eq!(read_templ(&p).unwrap().title.as_deref(), Some("Jelly Castle (Evan King Retro Mix)"));
+    std::fs::write(&p, [0xFF, 0xFE, 0x41]).unwrap();
+    assert!(read_templ(&p).unwrap_err().line.is_none());
+}
+
+#[test]
+fn bad_numbers_name_the_line() {
+    // Year
+    let mut lines: Vec<&str> = TEMPL1A.lines().collect();
+    lines[3] = "abcd";
+    assert_eq!(parse_templ(&lines.join("\n")).unwrap_err().line, Some(4));
+
+    // Track
+    let mut lines: Vec<&str> = TEMPL1A.lines().collect();
+    lines[4] = "501";
+    assert_eq!(parse_templ(&lines.join("\n")).unwrap_err().line, Some(5));
+
+    // Rating
+    let mut lines: Vec<&str> = TEMPL1A.lines().collect();
+    lines[10] = "256";
+    assert_eq!(parse_templ(&lines.join("\n")).unwrap_err().line, Some(11));
+}
+
+#[test]
+fn apply_fills_track_fields_and_inherits_album_values() {
+    let t = parse_templ("Mili\nCamelia\n\n\n\n\nSoundtrack\n\nC\nR\n\n\n\n\n\n\n\n\n").unwrap();
+    let mut e = TrackEdit {
+        performer: "keep".into(),
+        ..TrackEdit::default()
+    };
+    t.apply_to_track_edit(&mut e, "Mili", "Rock");
+    assert_eq!(e.title, "Camelia");
+    assert_eq!(e.artist, "");
+    assert_eq!(e.genre, "Soundtrack");
+    assert_eq!((e.composer.as_str(), e.remixer.as_str()), ("C", "R"));
+    assert_eq!(e.performer, "keep");
+}
+
 #[test]
 fn start_and_raw_round_trip() {
     for stars in 0..=5u8 {
