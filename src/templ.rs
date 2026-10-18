@@ -1,6 +1,8 @@
 use core::fmt;
 use std::path::{Path, PathBuf};
 
+use crate::models::track::TrackEdit;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TemplAlbumArtMode {
     Change(PathBuf),
@@ -144,4 +146,33 @@ pub fn parse_templ(text: &str) -> Result<Templ, TemplError> {
         ))?,
         art_path: text_field(18).map(PathBuf::from),
     })
+}
+
+impl Templ {
+    /// Fills the track-level fields of `edit` from this template.
+    pub fn apply_to_track_edit(&self, edit: &mut TrackEdit, album_artist: &str, album_genre: &str) {
+        let inherit = |value: &str, album_value: &str| {
+            if value == album_value.trim() {
+                String::new()
+            } else {
+                value.to_string()
+            }
+        };
+
+        if let Some(v) = &self.title {
+            edit.title = v.clone();
+        }
+        if let Some(v) = &self.artist {
+            edit.artist = inherit(v, album_artist);
+        }
+        if let Some(v) = &self.title {
+            edit.genre = inherit(v, album_genre);
+        }
+        if let Some(v) = &self.composer {
+            edit.composer = v.clone();
+        }
+        if let Some(v) = &self.remixer {
+            edit.remixer = v.clone();
+        }
+    }
 }
