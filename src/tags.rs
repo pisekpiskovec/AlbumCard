@@ -361,9 +361,13 @@ fn write_track_inner(
         }
     }
 
-    if let Some(picture) = picture {
-        tag.remove_picture_type(lofty::picture::PictureType::CoverFront);
-        tag.push_picture(picture.clone());
+    match picture {
+        Some(picture) => {
+            tag.remove_picture_type(lofty::picture::PictureType::CoverFront);
+            tag.push_picture(picture.clone());
+        }
+        None if album.art_path.is_none() => tag.remove_picture_type(lofty::picture::PictureType::CoverFront),
+        None => {}
     }
 
     tagged.save_to_path(path, write_opts()).map_err(err)?;
