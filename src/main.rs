@@ -454,8 +454,8 @@ impl SimpleComponent for AppModel {
                                 if let Err(e) = crate::storage::save_album(&new_album) {
                                     eprintln!("failed to save new album: {e}");
                                 }
-                                self.saved_json = self.album.to_json().expect("serialization should succeed");
                                 self.album = new_album;
+                                self.saved_json = self.album.to_json().expect("serialization should succeed");
                                 self.sidebar_albums = crate::storage::list_albums();
                             }
                             Err(e) => {
