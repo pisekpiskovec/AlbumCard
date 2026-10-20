@@ -188,9 +188,9 @@ impl Component for TrackEditDialog {
         details_entry_row!("Lyricist", lyricist, LyricistChanged);
         details_entry_row!("Remixer", remixer, RemixerChanged);
 
-        sorting_entry_row!("Sort Album", sort_album_title, SortAlbumTitleChanged);
-        sorting_entry_row!("Sort Title", sort_track_title, SortTrackTitleChanged);
-        sorting_entry_row!("Sort Artist", sort_album_artist, SortAlbumArtistChanged);
+        sorting_entry_row!("Sort Album Title", sort_album_title, SortAlbumTitleChanged);
+        sorting_entry_row!("Sort Track Title", sort_track_title, SortTrackTitleChanged);
+        sorting_entry_row!("Sort Album Artist", sort_album_artist, SortAlbumArtistChanged);
         sorting_entry_row!("Sort Performer", sort_performer, SortPerformerChanged);
         sorting_entry_row!("Sort Composer", sort_composer, SortComposerChanged);
 
