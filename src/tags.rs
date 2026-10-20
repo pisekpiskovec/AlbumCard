@@ -112,6 +112,7 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
 
     let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
         return Ok(TrackEdit {
+            file_path: path.to_path_buf(),
             title: fallback_title,
             ..TrackEdit::default()
         });
