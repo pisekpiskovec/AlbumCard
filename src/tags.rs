@@ -19,15 +19,7 @@ fn err<E: std::error::Error>(e: E) -> TagError {
 
 use chrono::NaiveDate;
 use lofty::{
-    config::{ParseOptions, WriteOptions},
-    file::{AudioFile, FileType, TaggedFileExt},
-    flac::FlacFile,
-    mp4::{Atom, AtomData, AtomIdent, Mp4File},
-    mpeg::MpegFile,
-    ogg::{OpusFile, VorbisFile},
-    picture::Picture,
-    probe::Probe,
-    tag::{Accessor, ItemKey, Tag},
+    config::{ParseOptions, WriteOptions}, file::{AudioFile, FileType, TaggedFileExt}, flac::FlacFile, mp4::{Atom, AtomData, AtomIdent, Mp4File}, mpeg::MpegFile, ogg::{OpusFile, VorbisFile}, picture::{Picture, PictureType}, probe::Probe, tag::{Accessor, ItemKey, Tag},
 };
 
 use crate::models::{
@@ -389,6 +381,65 @@ fn write_track(
     let mut unsupported = Vec::new();
     let result = write_track_inner(album, track, position, picture, &mut unsupported);
     (result, unsupported)
+}
+
+/// File extension for an embedded picture: from its MIME type,
+/// or sniffed from the firt bytes when the tag didn't say.
+fn picture_extension(picture: &Picture) -> Option<&'static str> {
+    match picture.mime_type() {
+        Some(lofty::picture::MimeType::Png) => return Some("png"),
+        Some(lofty::picture::MimeType::Jpeg) => return Some("jpg"),
+        Some(lofty::picture::MimeType::Gif) => return Some("gif"),
+        Some(lofty::picture::MimeType::Bmp) => return Some("bmp"),
+        _ => {},
+    }
+
+    let data = picture.data();
+    if data.starts_with(&[0x89, b'P', b'N', b'G']) {
+        Some("png")
+    } else if data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some("jpg")
+    } else if data.starts_with(b"GIF8") {
+        Some("gif")
+    } else if data.starts_with(b"BM") {
+        Some("bmp")
+    } else {
+        None
+    }
+}
+
+/// Saves the fron cover embedded in `audio` (or, failing that, the first picture)
+/// as `<dest_dir>/<stem>.<ext>` and returns the new path.
+/// `Ok(None)` means the file simply has no usable picture.
+pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option<PathBuf>, TagError> {
+    let tagged = Probe::open(audio).map_err(err)?.options(parse_opts()).read().map_err(err)?;
+
+    let mut best: Option<&Picture> = None;
+    for tag in tagged.tags() {
+        for picture in tag.pictures() {
+            if picture_extension(picture).is_none() {
+                continue;
+            }
+            if picture.pic_type() == PictureType::CoverFront {
+                best = Some(picture);
+                break;
+            }
+            best = best.or(Some(picture));
+        }
+        if best.is_some_and(|p| p.pic_type() == PictureType::CoverFront) {
+            break;
+        }
+    }
+
+    let Some(picture) = best else {
+        return Ok(None);
+    };
+    let extension = picture_extension(picture).expect("filtered above");
+
+    std::fs::create_dir_all(dest_dir)?;
+    let dest = dest_dir.join(format!("{stem}.{extension}"));
+    std::fs::write(&dest, picture.data())?;
+    Ok(Some(dest))
 }
 
 /// Writes the album's metadata to every Track's file. Disk and Voids have no

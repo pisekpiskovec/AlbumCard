@@ -497,9 +497,13 @@ impl SimpleComponent for AppModel {
                         }
                     }
                     TrackEditTarget::New(path) => {
-                        let mut track = Track::new(path);
-                        if track.apply_edit(edit).is_ok() && !self.album.add_track(track) {
-                            self.toast("Single cannot hold more than 1 Track.");
+                        let mut track = Track::new(path.clone());
+                        if track.apply_edit(edit).is_ok() {
+                            if self.album.add_track(track) {
+                                self.art_from_track(&path);
+                            } else {
+                                self.toast("Single cannot hold more than 1 Track.");
+                            }
                         }
                     }
                 }
@@ -762,6 +766,24 @@ impl AppModel {
         let sender = sender.clone();
         dialog.connect_response(None, move |_, response| sender.input(AppMsg::UnsavedResponse(response.to_string())));
         dialog.present(Some(&self.window));
+    }
+
+    fn art_from_track(&mut self, audio: &std::path::Path) {
+        if self.album.art_path.is_some() {
+            return;
+        }
+        let Some(dir) = dirs::cache_dir().map(|d| d.join("albumcard").join("covers")) else {
+            return;
+        };
+
+        match tags::extract_cover(audio, &dir, &self.album.id.to_string()) {
+            Ok(Some(path)) => {
+                self.album.art_path = Some(path);
+                self.toast("Album art taken from the new track.");
+            },
+            Ok(None) => {},
+            Err(e) => self.toast(&format!("Couldn't read the cover: {e}")),
+        }
     }
 }
 
