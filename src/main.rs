@@ -752,7 +752,7 @@ impl AppModel {
         self.pending = Some(target);
         let dialog = adw::AlertDialog::builder()
             .heading("Unsaved changes")
-            .body("Save changes to this album before swithching?")
+            .body("Save changes to this album before continuing?")
             .build();
         dialog.add_responses(&[("cancel", "Cancel"), ("discard", "Discard"), ("save", "Save")]);
         dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
