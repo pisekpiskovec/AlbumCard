@@ -177,6 +177,7 @@ impl Component for TrackEditDialog {
 
         let release_date_row = adw::ActionRow::builder()
             .title("Release date")
+            .subtitle("Blank to use album release date")
             .activatable_widget(&release_date_button)
             .build();
         release_date_row.add_suffix(&release_date_button);
