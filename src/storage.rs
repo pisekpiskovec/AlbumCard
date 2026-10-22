@@ -60,3 +60,26 @@ pub fn list_albums() -> Vec<(Uuid, String)> {
     entries.sort_by_key(|a| std::cmp::Reverse(a.0));
     entries.into_iter().map(|(_, id, title)| (id, title)).collect()
 }
+
+pub fn delete_album(id: Uuid) -> bool {
+    let Ok(dir) = ensure_album_dir() else {
+        return false;
+    };
+    let Ok(read_dir) = fs::read_dir(&dir) else {
+        return false;
+    };
+
+    let mut path_of_deleted = PathBuf::new();
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        if path.file_stem().and_then(|e| e.to_str()) != Some(&id.to_string()) {
+            continue;
+        }
+        path_of_deleted = path;
+    }
+
+    std::fs::remove_file(path_of_deleted).is_ok()
+}

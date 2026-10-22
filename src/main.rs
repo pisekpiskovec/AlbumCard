@@ -57,6 +57,7 @@ enum AppMsg {
     TrackEditResult(TrackEditOutput),
     MoveItem(usize, Direction),
     DeleteItem(usize),
+    DeleteAlbum(Uuid),
     SetVoidSize(usize, u32),
     OpenAlbum(Uuid),
     SaveAlbum,
@@ -632,6 +633,9 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::CloseRequest => self.leave(Pending::Quit, &sender),
             AppMsg::ClearAlbumArt => self.album.art_path = None,
+            AppMsg::DeleteAlbum(id) => {
+                storage::delete_album(id);
+            }
         }
     }
 
@@ -837,9 +841,35 @@ fn populate_sidebar(
         if id == current_id {
             list.select_row(Some(&row));
         }
+
+        let album_menu = gtk::gio::Menu::new();
+        {
+            let action = gtk::gio::SimpleAction::new("del-album", None);
+            let sender = sender.clone();
+            action.connect_activate(move |_, _| sender.input(AppMsg::DeleteAlbum(id)));
+            relm4::main_application().add_action(&action);
+        }
+
         row.connect_activated(move |_| {
             sender.input(AppMsg::OpenAlbum(id));
         });
+
+        album_menu.append(Some("Delete Album"), Some("app.del-album"));
+        let album_popover = gtk::PopoverMenu::from_model(Some(&album_menu));
+        album_popover.set_parent(&row);
+        album_popover.set_has_arrow(false);
+        album_popover.set_halign(gtk::Align::Start);
+        {
+            let popover = album_popover.clone();
+            let right_click = gtk::GestureClick::builder().button(BUTTON_SECONDARY).build();
+            right_click.connect_pressed(move |_, _, x, y| {
+                popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                popover.popup();
+            });
+            row.add_controller(right_click);
+        }
+        row.clone().connect_destroy(move |row| row.unparent());
+
         list.append(&row);
     }
 }
