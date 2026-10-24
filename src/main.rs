@@ -57,7 +57,8 @@ enum AppMsg {
     TrackEditResult(TrackEditOutput),
     MoveItem(usize, Direction),
     DeleteItem(usize),
-    DeleteAlbum(Uuid),
+    DeleteAlbumRequest(Uuid),
+    DeleteAlbumConfirmed(Uuid),
     SetVoidSize(usize, u32),
     OpenAlbum(Uuid),
     SaveAlbum,
@@ -110,6 +111,20 @@ impl SimpleComponent for AppModel {
                 gtk::glib::Propagation::Stop
             });
         }
+
+        let del_album_action = gtk::gio::SimpleAction::new("del-album", Some(&String::static_variant_type()));
+        {
+            let sender = sender.clone();
+            del_album_action.connect_activate(move |_, param| {
+                if let Some(id) = param
+                    .and_then(|p| p.get::<String>())
+                    .and_then(|s| Uuid::parse_str(&s).ok())
+                {
+                    sender.input(AppMsg::DeleteAlbumRequest(id));
+                }
+            });
+        }
+        relm4::main_application().add_action(&del_album_action);
 
         let split_view = adw::OverlaySplitView::new();
 
@@ -633,8 +648,37 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::CloseRequest => self.leave(Pending::Quit, &sender),
             AppMsg::ClearAlbumArt => self.album.art_path = None,
-            AppMsg::DeleteAlbum(id) => {
-                storage::delete_album(id);
+            AppMsg::DeleteAlbumRequest(id) => {
+                let name = self
+                    .sidebar_albums
+                    .iter()
+                    .find(|(i, _)| *i == id)
+                    .map(|(_, t)| t.as_str())
+                    .unwrap_or("This album");
+                let dialog = adw::AlertDialog::builder()
+                    .heading("Delete album?")
+                    .body(format!("\"{name}\" will be removed from AlbumCard. Your audio files are not touched. This can't be undone."))
+                    .build();
+                dialog.add_responses(&[("cancel", "Cancel"), ("delete", "Delete Album")]);
+                dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+                dialog.set_default_response(Some("cancel"));
+                dialog.set_close_response("cancel");
+                let sender = sender.clone();
+                dialog.connect_response(Some("delete"), move |_, _| {
+                    sender.input(AppMsg::DeleteAlbumConfirmed(id))
+                });
+                dialog.present(Some(&self.window));
+            }
+            AppMsg::DeleteAlbumConfirmed(id) => match storage::delete_album(id) {
+                Ok(()) => {
+                    if id == self.album.id {
+                        self.album = Album::empty();
+                        self.saved_json = self.album.to_json().expect("serialization should succeed.");
+                    }
+                    self.sidebar_albums = storage::list_albums();
+                    self.toast("Album deleted.");
+                }
+                Err(e) => self.toast(&format!("Couldn't delete the album: {e}")),
             }
         }
     }
@@ -784,8 +828,8 @@ impl AppModel {
             Ok(Some(path)) => {
                 self.album.art_path = Some(path);
                 self.toast("Album art taken from the new track.");
-            },
-            Ok(None) => {},
+            }
+            Ok(None) => {}
             Err(e) => self.toast(&format!("Couldn't read the cover: {e}")),
         }
     }
@@ -843,18 +887,14 @@ fn populate_sidebar(
         }
 
         let album_menu = gtk::gio::Menu::new();
-        {
-            let action = gtk::gio::SimpleAction::new("del-album", None);
-            let sender = sender.clone();
-            action.connect_activate(move |_, _| sender.input(AppMsg::DeleteAlbum(id)));
-            relm4::main_application().add_action(&action);
-        }
+        let delete_item = gtk::gio::MenuItem::new(Some("Delete Album"), None);
+        delete_item.set_action_and_target_value(Some("app.del-album"), Some(&id.to_string().to_variant()));
+        album_menu.append_item(&delete_item);
 
         row.connect_activated(move |_| {
             sender.input(AppMsg::OpenAlbum(id));
         });
 
-        album_menu.append(Some("Delete Album"), Some("app.del-album"));
         let album_popover = gtk::PopoverMenu::from_model(Some(&album_menu));
         album_popover.set_parent(&row);
         album_popover.set_has_arrow(false);
@@ -868,7 +908,7 @@ fn populate_sidebar(
             });
             row.add_controller(right_click);
         }
-        row.clone().connect_destroy(move |row| row.unparent());
+        row.connect_destroy(move |_| album_popover.unparent());
 
         list.append(&row);
     }
