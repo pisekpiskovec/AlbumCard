@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component type="desktop-application">
+  <id>io.github.pisekpiskovec.AlbumCard</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>AlbumCard</name>
+  <summary>Next generation of audio taggers</summary>
+  <description>
+    <p>Edit your albums like you would see them on streaming services. Edit values in global album tags, or overwrite them in a track directly.</p>
+  </description>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>AudioVideoEditing</category>
+  </categories>
+
+  <keywords>
+    <keyword>id3v2</keyword>
+    <keyword>mp3</keyword>
+    <keyword>tag</keyword>
+    <keyword>tagger</keyword>
+    <keyword>title</keyword>
+    <keyword>artist</keyword>
+    <keyword>metadata</keyword>
+    <keyword>metainfo</keyword>
+    <keyword>album</keyword>
+  </keywords>
+
+  <developer id="pisekpiskovec">
+    <name>Písek Pískovec</name>
+  </developer>
+
+  <url type="homepage">https://github.com/pisekpiskovec/AlbumArt</url>
+  <url type="vcs-browser">https://github.com/pisekpiskovec/AlbumArt</url>
+  <url type="bugtracker">https://github.com/pisekpiskovec/AlbumArt/issues</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/first_start.png?raw=true</image>
+      <caption>Blank album</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/new_album_dialog.png?raw=true</image>
+      <caption>Creating an Album</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/importing_track.png?raw=true</image>
+      <caption>Adding a Track</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/filled_ep.png?raw=true</image>
+      <caption>Full Album</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/unsaved_changes.png?raw=true</image>
+      <caption>Unsaved Album warning</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://github.com/pisekpiskovec/AlbumCard/blob/master/assets/screenshots/filled_single.png?raw=true</image>
+      <caption>Full Album (Single)</caption>
+    </screenshot>
+  </screenshots>
+
+  <launchable type="desktop-id">io.github.pisekpiskovec.AlbumCard.desktop</launchable>
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0" date="2026-10-28">
+      <description translate="no">
+        <p>R.I.P. (by ReoNa)</p>
+        <p>Initial release</p>
+      </description>
+    </release>
+  </releases>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#4c597f</color>
+    <color type="primary" scheme_preference="dark">#1f1f1f</color>
+  </branding>
+</component>

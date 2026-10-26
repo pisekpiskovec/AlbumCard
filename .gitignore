@@ -1,2 +1,3 @@
 /target
 test-tracks/
+/scripts/flatpak-cargo-generator.py

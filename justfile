@@ -38,7 +38,8 @@ install:
 #     mv target/debian/*.deb ./
 #     cargo clean
 
-# [linux]
-# build-flatpak:
-#     flatpak-builder --user --install --force-clean build-dir com.github.pisekpiskovec.Breadboard.yml
-#     flatpak run com.github.pisekpiskovec.Breadboard
+[linux]
+build-flatpak:
+    flatpak-builder --force-clean --disable-rofiles-fuse --user --install-deps-from=flathub --repo=repo --install builddir io.github.pisekpiskovec.AlbumCard.json
+    xdg-desktop-menu forceupdate
+    flatpak run io.github.pisekpiskovec.AlbumCard

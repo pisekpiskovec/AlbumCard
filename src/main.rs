@@ -543,12 +543,13 @@ impl SimpleComponent for AppModel {
             AppMsg::About => {
                 let about = adw::AboutDialog::builder()
                     .application_name("AlbumCard")
-                    // .application_icon()
+                    .application_icon("io.github.pisekpiskovec.AlbumCard")
                     .developer_name("Písek Pískovec")
                     .version(format!("{}.{}", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR")))
                     .developers(vec!["Písek Pískovec"])
-                    // .artists(vec![]})
+                    .artists(vec!["Písek Pískovec"]})
                     // .translator_credits(vec![])
+                    .comments("R.I.P.\nNext generation of audio taggers")
                     .website("https://github.com/PisekPiskovec/AlbumCard")
                     .issue_url("https://github.com/PisekPiskovec/AlbumCard/issues")
                     .license_type(gtk::License::Gpl30)
@@ -1067,6 +1068,6 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
 }
 
 fn main() {
-    let app = RelmApp::new("com.github.pisekpiskovec.AlbumCard");
+    let app = RelmApp::new("io.github.pisekpiskovec.AlbumCard");
     app.run::<AppModel>(());
 }

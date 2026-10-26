@@ -1,0 +1,53 @@
+{
+  "app-id": "io.github.pisekpiskovec.AlbumCard",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "51",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "command": "albumcard",
+  "finish-args": [
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--share=ipc",
+    "--device=dri",
+    "--filesystem=xdg-music",
+    "--filesystem=xdg-pictures",
+    "--filesystem=xdg-download"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/albumcard/cargo"
+    }
+  },
+  "modules": [
+    {
+      "name": "albumcard",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cargo --offline fetch --manifest-path Cargo.toml --verbose",
+        "cargo --offline build --release --verbose",
+        "install -Dm755 target/release/albumcard -t /app/bin",
+        "install -Dm644 data/io.github.pisekpiskovec.AlbumCard.desktop -t /app/share/applications",
+        "install -Dm644 data/io.github.pisekpiskovec.AlbumCard.metainfo.xml -t /app/share/metainfo",
+        "install -Dm644 data/io.github.pisekpiskovec.AlbumCard.svg -t /app/share/icons/hicolor/scalable/apps"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": ".",
+          "skip": [
+            ".git",
+            "target",
+            ".flatpak-builder",
+            "builddir",
+            "repo"
+          ]
+        },
+        "cargo-sources.json"
+      ]
+    }
+  ]
+}
