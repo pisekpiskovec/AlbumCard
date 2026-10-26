@@ -545,15 +545,13 @@ impl SimpleComponent for AppModel {
                     .application_name("AlbumCard")
                     // .application_icon()
                     .developer_name("Písek Pískovec")
-                    .version(VERSION)
+                    .version(format!("{}.{}", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR")))
                     .developers(vec!["Písek Pískovec"])
                     // .artists(vec![]})
                     // .translator_credits(vec![])
-                    .copyright("TBD")
-                    .comments("\\o")
                     .website("https://github.com/PisekPiskovec/AlbumCard")
                     .issue_url("https://github.com/PisekPiskovec/AlbumCard/issues")
-                    // .license_type()
+                    .license_type(gtk::License::Gpl30)
                     .build();
 
                 let app = relm4::main_adw_application();
