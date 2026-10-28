@@ -2,6 +2,23 @@
 name = "albumcard"
 version = "0.7.0"
 edition = "2024"
+license = "GPLv3"
+description = "Next generation of audio taggers"
+repository = "https://github.com/pisekpiskovec/AlbumCard"
+
+[package.metadata.generate-rpm]
+assets = [
+  { source = "target/release/albumcard", dest = "/usr/bin/albumcard", mode = "755"},
+  { source = "data/io.github.pisekpiskovec.AlbumCard.desktop", dest = "/usr/share/applications/breadboard.desktop", mode = "644"},
+]
+
+[package.metadata.deb]
+section = "sound"
+depends = "$auto"
+assets = [
+  { source = "target/release/albumcard", dest = "/usr/bin/albumcard", mode = "755"},
+  { source = "data/io.github.pisekpiskovec.AlbumCard.desktop", dest = "/usr/share/applications/breadboard.desktop", mode = "644"},
+]
 
 [dependencies]
 gtk = { version = "0.11", package = "gtk4", features = ["gnome_50"] }
