@@ -19,7 +19,15 @@ fn err<E: std::error::Error>(e: E) -> TagError {
 
 use chrono::NaiveDate;
 use lofty::{
-    config::{ParseOptions, WriteOptions}, file::{AudioFile, FileType, TaggedFileExt}, flac::FlacFile, mp4::{Atom, AtomData, AtomIdent, Mp4File}, mpeg::MpegFile, ogg::{OpusFile, VorbisFile}, picture::{Picture, PictureType}, probe::Probe, tag::{Accessor, ItemKey, Tag},
+    config::{ParseOptions, WriteOptions},
+    file::{AudioFile, FileType, TaggedFileExt},
+    flac::FlacFile,
+    mp4::{Atom, AtomData, AtomIdent, Mp4File},
+    mpeg::MpegFile,
+    ogg::{OpusFile, VorbisFile},
+    picture::{Picture, PictureType},
+    probe::Probe,
+    tag::{Accessor, ItemKey, Tag},
 };
 
 use crate::models::{
@@ -35,6 +43,7 @@ fn write_opts() -> WriteOptions {
     WriteOptions::new().parse_options(parse_opts())
 }
 
+#[deprecated]
 /// A few fields have no standard key in every tag format.
 fn custom_fallback(key: &ItemKey) -> Option<&'static str> {
     match key {
@@ -418,7 +427,7 @@ fn picture_extension(picture: &Picture) -> Option<&'static str> {
         Some(lofty::picture::MimeType::Jpeg) => return Some("jpg"),
         Some(lofty::picture::MimeType::Gif) => return Some("gif"),
         Some(lofty::picture::MimeType::Bmp) => return Some("bmp"),
-        _ => {},
+        _ => {}
     }
 
     let data = picture.data();
@@ -439,7 +448,11 @@ fn picture_extension(picture: &Picture) -> Option<&'static str> {
 /// as `<dest_dir>/<stem>.<ext>` and returns the new path.
 /// `Ok(None)` means the file simply has no usable picture.
 pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option<PathBuf>, TagError> {
-    let tagged = Probe::open(audio).map_err(err)?.options(parse_opts()).read().map_err(err)?;
+    let tagged = Probe::open(audio)
+        .map_err(err)?
+        .options(parse_opts())
+        .read()
+        .map_err(err)?;
 
     let mut best: Option<&Picture> = None;
     for tag in tagged.tags() {
