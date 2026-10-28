@@ -12,91 +12,101 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-rpm-x64:
-    runs-on: ubuntu-latest
+  # build-rpm-x64:
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install cargo-generate-rpm
-      run: cargo install cargo-generate-rpm
-    - name: Build release binary
-      run: cargo build --release
-    - name: Strip binary
-      run: strip -s target/release/albumcard
-    - name: Generate RPM
-      run: cargo generate-rpm
-    - name: Upload RPM to release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: target/generate-rpm/*.rpm
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install dependencies
+  #     run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+  #   - name: Install cargo-generate-rpm
+  #     run: cargo install cargo-generate-rpm
+  #   - name: Build release binary
+  #     run: cargo build --release
+  #   - name: Strip binary
+  #     run: strip -s target/release/albumcard
+  #   - name: Generate RPM
+  #     run: cargo generate-rpm
+  #   - name: Upload RPM to release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       files: target/generate-rpm/*.rpm
 
-  build-elf-x64:
-    runs-on: ubuntu-latest
+  # build-elf-x64:
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build release binary
-      run: cargo build --release
-    - name: Strip binary
-      run: strip -s target/release/albumcard
-    - name: Rename binary
-      run: mv target/release/albumcard target/release/albumcard-x64
-    - name: Upload binary to release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: target/release/albumcard-x64
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install dependencies
+  #     run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+  #   - name: Build release binary
+  #     run: cargo build --release
+  #   - name: Strip binary
+  #     run: strip -s target/release/albumcard
+  #   - name: Rename binary
+  #     run: mv target/release/albumcard target/release/albumcard-x64
+  #   - name: Upload binary to release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       files: target/release/albumcard-x64
 
-  build-deb-x64:
-    runs-on: ubuntu-latest
+  # build-deb-x64:
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install cargo-deb
-      run: cargo install cargo-deb
-    - name: Build release binary
-      run: cargo build --release
-    - name: Strip binary
-      run: strip -s target/release/albumcard
-    - name: Generate DEB
-      run: cargo deb
-    - name: Upload DEB to release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: target/debian/*.deb
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install dependencies
+  #     run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+  #   - name: Install cargo-deb
+  #     run: cargo install cargo-deb
+  #   - name: Build release binary
+  #     run: cargo build --release
+  #   - name: Strip binary
+  #     run: strip -s target/release/albumcard
+  #   - name: Generate DEB
+  #     run: cargo deb
+  #   - name: Upload DEB to release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       files: target/debian/*.deb
 
-  build-deb-arm:
-    runs-on: ubuntu-24.04-arm
+  # build-deb-arm:
+  #   runs-on: ubuntu-24.04-arm
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install cargo-deb
-      run: cargo install cargo-deb
-    - name: Build release binary
-      run: cargo build --release
-    - name: Strip binary
-      run: strip -s target/release/albumcard
-    - name: Generate DEB
-      run: cargo deb
-    - name: Upload DEB to release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: target/debian/*.deb
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install dependencies
+  #     run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+  #   - name: Install cargo-deb
+  #     run: cargo install cargo-deb
+  #   - name: Build release binary
+  #     run: cargo build --release
+  #   - name: Strip binary
+  #     run: strip -s target/release/albumcard
+  #   - name: Generate DEB
+  #     run: cargo deb
+  #   - name: Upload DEB to release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       files: target/debian/*.deb
 
-  build-elf-arm:
-    runs-on: ubuntu-24.04-arm
+  # build-elf-arm:
+  #   runs-on: ubuntu-24.04-arm
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build release binary
-      run: cargo build --release
-    - name: Strip binary
-      run: strip -s target/release/albumcard
-    - name: Rename binary
-      run: mv target/release/albumcard target/release/albumcard-arm
-    - name: Upload binary to release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: target/release/albumcard-arm
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Install dependencies
+  #     run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+  #   - name: Build release binary
+  #     run: cargo build --release
+  #   - name: Strip binary
+  #     run: strip -s target/release/albumcard
+  #   - name: Rename binary
+  #     run: mv target/release/albumcard target/release/albumcard-arm
+  #   - name: Upload binary to release
+  #     uses: softprops/action-gh-release@v2
+  #     with:
+  #       files: target/release/albumcard-arm
 
   build-flatpak:
     runs-on: ${{ matrix.runner }}
@@ -114,6 +124,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
     - name: Build Flatpak bundle
       uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       with:
