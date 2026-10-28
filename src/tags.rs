@@ -135,6 +135,28 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
         }
     };
 
+    let split_trim_join = |value: &str| {
+        value
+            .split(&[',', ';', '/', '+', '\0'])
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+            .map(|r| r.to_string())
+            .collect::<Vec<_>>()
+            .join(";")
+    };
+
+    let multi = |key: ItemKey| {
+        let v = all_values(tag, key);
+        if v.is_empty() {
+            custom_name(key)
+                .and_then(|n| read_custom(path, n))
+                .map(|s| split_trim_join(&s))
+                .unwrap_or_default()
+        } else {
+            v
+        }
+    };
+
     let title = tag
         .title()
         .map(|t| t.trim().to_string())
@@ -151,13 +173,13 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
     Ok(TrackEdit {
         file_path: path.to_path_buf(),
         title,
-        artist: inherit(tag.artist().map(|a| a.trim().to_string()).unwrap_or_default(), album_artist),
-        genre: inherit(tag.genre().map(|g| g.trim().to_string()).unwrap_or_default(), album_genre),
+        artist: inherit(all_values(tag, ItemKey::TrackArtist), &split_trim_join(album_artist)),
+        genre: inherit(all_values(tag, ItemKey::Genre), &split_trim_join(album_genre)),
         release_date,
-        performer: text(ItemKey::Performer),
-        composer: text(ItemKey::Composer),
-        lyricist: text(ItemKey::Lyricist),
-        remixer: text(ItemKey::Remixer),
+        performer: multi(ItemKey::Performer),
+        composer: multi(ItemKey::Composer),
+        lyricist: multi(ItemKey::Lyricist),
+        remixer: multi(ItemKey::Remixer),
         sort_album_title: text(ItemKey::AlbumTitleSortOrder),
         sort_album_artist: text(ItemKey::AlbumArtistSortOrder),
         sort_composer: text(ItemKey::ComposerSortOrder),
@@ -300,10 +322,10 @@ fn write_track_inner(
         .expect("a tag wa inserted just above if none existed");
 
     tag.set_title(track.title.clone());
-    tag.set_artist(connect_values(track.effective_artist(album).to_string()));
+    tag.set_artist(connect_values(track.effective_artist(album)));
     tag.set_album(album.title.clone());
-    tag.set_genre(connect_values(track.effective_genre(album).to_string()));
-    tag.insert_text(ItemKey::AlbumArtist, connect_values(album.album_artist.clone()));
+    tag.set_genre(connect_values(track.effective_genre(album)));
+    tag.insert_text(ItemKey::AlbumArtist, connect_values(&album.album_artist));
 
     if let Some(position) = position {
         if let Some(n) = position.track
@@ -329,13 +351,17 @@ fn write_track_inner(
         .release_date
         .or(album.release_date)
         .map(|d| d.format("%Y").to_string());
+    let performer = joined(&track.performer);
+    let composer = joined(&track.composer);
+    let lyricist = joined(&track.lyricist);
+    let remixer = joined(&track.remixer);
     let fields: [(&'static str, ItemKey, Option<&str>); 11] = [
         ("release date", ItemKey::RecordingDate, date.as_deref()),
         ("release year", ItemKey::Year, year.as_deref()),
-        ("performer", ItemKey::Performer, Some(&connect_values(track.performer.as_ref().unwrap_or(&String::new()).to_string()))),
-        ("composer", ItemKey::Composer, Some(&connect_values(track.composer.as_ref().unwrap_or(&String::new()).to_string()))),
-        ("lyricist", ItemKey::Lyricist, Some(&connect_values(track.lyricist.as_ref().unwrap_or(&String::new()).to_string()))),
-        ("remixer", ItemKey::Remixer, Some(&connect_values(track.remixer.as_ref().unwrap_or(&String::new()).to_string()))),
+        ("performer", ItemKey::Performer, performer.as_deref()),
+        ("composer", ItemKey::Composer, composer.as_deref()),
+        ("lyricist", ItemKey::Lyricist, lyricist.as_deref()),
+        ("remixer", ItemKey::Remixer, remixer.as_deref()),
         ("sort album title", ItemKey::AlbumTitleSortOrder, track.sort_album_title.as_deref()),
         ("sort album artist", ItemKey::AlbumArtistSortOrder, track.sort_album_artist.as_deref()),
         ("sort composer", ItemKey::ComposerSortOrder, track.sort_composer.as_deref()),
@@ -480,12 +506,24 @@ pub fn write_album_tags(album: &Album) -> WriteSummary {
     summary
 }
 
-fn connect_values(value: String) -> String {
+fn connect_values(value: &str) -> String {
     value
-        .split(&[',', ';', '/', '+'])
+        .split(&[';', '|'])
         .map(str::trim)
         .filter(|p| !p.is_empty())
         .map(|r| r.to_string())
         .collect::<Vec<_>>()
         .join("\0")
+}
+
+fn all_values(tag: &Tag, key: ItemKey) -> String {
+    tag.get_strings(key)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+fn joined(v: &Option<String>) -> Option<String> {
+    v.as_deref().map(connect_values).filter(|s| !s.is_empty())
 }
