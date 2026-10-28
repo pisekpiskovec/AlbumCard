@@ -481,11 +481,11 @@ pub fn write_album_tags(album: &Album) -> WriteSummary {
 }
 
 fn connect_values(value: String) -> String {
-    let array: Vec<String> = value
+    value
         .split(&[',', ';', '/', '+'])
+        .map(str::trim)
         .filter(|p| !p.is_empty())
-        .map(|t| t.trim())
         .map(|r| r.to_string())
-        .collect();
-    array.join("\0")
+        .collect::<Vec<_>>()
+        .join("\0")
 }
