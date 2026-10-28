@@ -547,7 +547,7 @@ impl SimpleComponent for AppModel {
                     .developer_name("Písek Pískovec")
                     .version(format!("{}.{}", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR")))
                     .developers(vec!["Písek Pískovec"])
-                    .artists(vec!["Písek Pískovec"]})
+                    .artists(vec!["Písek Pískovec"])
                     // .translator_credits(vec![])
                     .comments("R.I.P.\nNext generation of audio taggers")
                     .website("https://github.com/PisekPiskovec/AlbumCard")
