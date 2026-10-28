@@ -300,10 +300,10 @@ fn write_track_inner(
         .expect("a tag wa inserted just above if none existed");
 
     tag.set_title(track.title.clone());
-    tag.set_artist(track.effective_artist(album).to_string());
+    tag.set_artist(connect_values(track.effective_artist(album).to_string()));
     tag.set_album(album.title.clone());
-    tag.set_genre(track.effective_genre(album).to_string());
-    tag.insert_text(ItemKey::AlbumArtist, album.album_artist.clone());
+    tag.set_genre(connect_values(track.effective_genre(album).to_string()));
+    tag.insert_text(ItemKey::AlbumArtist, connect_values(album.album_artist.clone()));
 
     if let Some(position) = position {
         if let Some(n) = position.track
@@ -332,10 +332,10 @@ fn write_track_inner(
     let fields: [(&'static str, ItemKey, Option<&str>); 11] = [
         ("release date", ItemKey::RecordingDate, date.as_deref()),
         ("release year", ItemKey::Year, year.as_deref()),
-        ("performer", ItemKey::Performer, track.performer.as_deref()),
-        ("composer", ItemKey::Composer, track.composer.as_deref()),
-        ("lyricist", ItemKey::Lyricist, track.lyricist.as_deref()),
-        ("remixer", ItemKey::Remixer, track.remixer.as_deref()),
+        ("performer", ItemKey::Performer, Some(&connect_values(track.performer.as_ref().unwrap_or(&String::new()).to_string()))),
+        ("composer", ItemKey::Composer, Some(&connect_values(track.composer.as_ref().unwrap_or(&String::new()).to_string()))),
+        ("lyricist", ItemKey::Lyricist, Some(&connect_values(track.lyricist.as_ref().unwrap_or(&String::new()).to_string()))),
+        ("remixer", ItemKey::Remixer, Some(&connect_values(track.remixer.as_ref().unwrap_or(&String::new()).to_string()))),
         ("sort album title", ItemKey::AlbumTitleSortOrder, track.sort_album_title.as_deref()),
         ("sort album artist", ItemKey::AlbumArtistSortOrder, track.sort_album_artist.as_deref()),
         ("sort composer", ItemKey::ComposerSortOrder, track.sort_composer.as_deref()),
@@ -478,4 +478,14 @@ pub fn write_album_tags(album: &Album) -> WriteSummary {
     }
 
     summary
+}
+
+fn connect_values(value: String) -> String {
+    let array: Vec<String> = value
+        .split(&[',', ';', '/', '+'])
+        .filter(|p| !p.is_empty())
+        .map(|t| t.trim())
+        .map(|r| r.to_string())
+        .collect();
+    array.join("\0")
 }
