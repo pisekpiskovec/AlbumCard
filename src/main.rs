@@ -178,7 +178,9 @@ impl SimpleComponent for AppModel {
             .margin_end(8)
             .build();
         sidebar_content_box.append(&new_album_button);
-        sidebar_content_box.append(&sidebar_list);
+        let sizebar_scroll = gtk::ScrolledWindow::builder().vexpand(true).child(&sidebar_list).build();
+        sidebar_content_box.append(&sizebar_scroll);
+
 
         let sidebar_toolbar = adw::ToolbarView::new();
         sidebar_toolbar.add_top_bar(&sidebar_header);
@@ -880,7 +882,7 @@ fn populate_sidebar(
     for (id, title) in albums {
         let id = *id;
         let sender = sender.clone();
-        let row = adw::ActionRow::builder().title(title).activatable(true).build();
+        let row = adw::ActionRow::builder().title(title.replace("&", "&amp;")).activatable(true).build();
         if id == current_id {
             list.select_row(Some(&row));
         }
