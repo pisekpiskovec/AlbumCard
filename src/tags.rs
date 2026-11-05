@@ -313,6 +313,7 @@ fn write_track_inner(
     position: Option<AlbumItemPosition>,
     picture: Option<&Picture>,
     unsupported: &mut Vec<&'static str>,
+    write_position: bool,
 ) -> Result<(), TagError> {
     let path = &track.file_path;
     let mut tagged = Probe::open(path)
@@ -338,7 +339,7 @@ fn write_track_inner(
 
     if let Some(position) = position {
         if let Some(n) = position.track
-            && album.mode != AlbumMode::Single
+            && write_position
         {
             tag.set_track(n);
         }
@@ -413,9 +414,10 @@ fn write_track(
     track: &crate::models::track::Track,
     position: Option<AlbumItemPosition>,
     picture: Option<&Picture>,
+    write_position: bool,
 ) -> (Result<(), TagError>, Vec<&'static str>) {
     let mut unsupported = Vec::new();
-    let result = write_track_inner(album, track, position, picture, &mut unsupported);
+    let result = write_track_inner(album, track, position, picture, &mut unsupported, write_position);
     (result, unsupported)
 }
 
@@ -488,7 +490,7 @@ pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option
 /// Track numbers come from `item_positions()`, so Voids leave real gaps in the numbering.
 /// No totals are written (track/disc totals are ambiguous with gaps).
 /// Cover art is only embedded when the album has one; an album without art leaves any picture already in the files alone.
-pub fn write_album_tags(album: &Album) -> WriteSummary {
+pub fn write_album_tags(album: &Album, save_position: bool) -> WriteSummary {
     let mut summary = WriteSummary::default();
 
     let picture = match &album.art_path {
@@ -507,7 +509,7 @@ pub fn write_album_tags(album: &Album) -> WriteSummary {
         let AlbumItem::Track(track) = item else {
             continue;
         };
-        let (result, unsupported) = write_track(album, track, position, picture.as_ref());
+        let (result, unsupported) = write_track(album, track, position, picture.as_ref(), save_position);
         summary.reports.push(WriteReport {
             index,
             path: track.file_path.clone(),

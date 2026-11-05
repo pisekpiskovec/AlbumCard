@@ -779,7 +779,7 @@ impl AppModel {
             return false;
         }
 
-        let summary = tags::write_album_tags(&self.album);
+        let summary = tags::write_album_tags(&self.album, !(self.album.mode == AlbumMode::Single && self.config.skip_saving_track_position_in_single));
         if let Some(art) = &summary.art_error {
             self.toast(&format!("Cover not embedded: {art}"));
         }
