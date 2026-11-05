@@ -454,7 +454,7 @@ impl SimpleComponent for AppModel {
                     });
                 }
                 AlbumItemType::Void => {
-                    self.album.add_void(config::DEFAULT_VOID_SIZE);
+                    self.album.add_void(self.config.default_void_size);
                 }
             },
             AppMsg::NewAlbumRequest => self.leave(Pending::New, &sender),
