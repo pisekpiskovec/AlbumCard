@@ -13,8 +13,9 @@ use gtk::{FileDialog, FileFilter};
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::config::VERSION;
+use crate::config::Config;
 use crate::dialogs::album_edit::{AlbumEditDialog, AlbumEditOutput, AlbumEditPurpose};
+use crate::dialogs::preferences::{PreferencesDialog, PreferencesOutput};
 use crate::dialogs::track_edit::{TrackEditDialog, TrackEditOutput, TrackEditTarget};
 use crate::models::album::AlbumEdit;
 use crate::models::track::TrackEdit;
@@ -41,14 +42,17 @@ struct AppModel {
     window: adw::Window,
     track_edit_dialog: Option<Controller<TrackEditDialog>>,
     album_edit_dialog: Option<Controller<AlbumEditDialog>>,
+    preferences_dialog: Option<Controller<PreferencesDialog>>,
     toast_overlay: adw::ToastOverlay,
     saved_json: String,
     pending: Option<Pending>,
+    config: config::Config,
 }
 
 #[derive(Debug)]
 enum AppMsg {
     About,
+    Preferences,
     AddItem(AlbumItemType),
     NewAlbumRequest,
     EditAlbumRequest,
@@ -68,6 +72,7 @@ enum AppMsg {
     ImageFileChosen(PathBuf),
     UnsavedResponse(String),
     CloseRequest,
+    PreferencesResult(PreferencesOutput),
 }
 
 struct AppWidgets {
@@ -101,6 +106,7 @@ impl SimpleComponent for AppModel {
     }
 
     fn init(_init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+        let config = Config::load().unwrap_or_default();
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
@@ -130,6 +136,16 @@ impl SimpleComponent for AppModel {
 
         // Sidebar pane
         let ham_menu = gtk::gio::Menu::new();
+        ham_menu.append(Some("Preferences"), Some("app.preferences"));
+        let action_preferences = gtk::gio::SimpleAction::new("preferences", None);
+        {
+            let sender = sender.clone();
+            action_preferences.connect_activate(move |_, _| {
+                sender.input(AppMsg::Preferences);
+            });
+        }
+        relm4::main_application().add_action(&action_preferences);
+        relm4::main_application().set_accels_for_action("app.preferences", &["<Primary>comma"]);
         ham_menu.append(Some("About AlbumCard"), Some("app.about"));
         let action_about = gtk::gio::SimpleAction::new("about", None);
         {
@@ -178,9 +194,11 @@ impl SimpleComponent for AppModel {
             .margin_end(8)
             .build();
         sidebar_content_box.append(&new_album_button);
-        let sizebar_scroll = gtk::ScrolledWindow::builder().vexpand(true).child(&sidebar_list).build();
+        let sizebar_scroll = gtk::ScrolledWindow::builder()
+            .vexpand(true)
+            .child(&sidebar_list)
+            .build();
         sidebar_content_box.append(&sizebar_scroll);
-
 
         let sidebar_toolbar = adw::ToolbarView::new();
         sidebar_toolbar.add_top_bar(&sidebar_header);
@@ -377,6 +395,8 @@ impl SimpleComponent for AppModel {
             toast_overlay,
             saved_json,
             pending: None,
+            config,
+            preferences_dialog: None,
         };
         let widgets = AppWidgets {
             split_view,
@@ -665,9 +685,7 @@ impl SimpleComponent for AppModel {
                 dialog.set_default_response(Some("cancel"));
                 dialog.set_close_response("cancel");
                 let sender = sender.clone();
-                dialog.connect_response(Some("delete"), move |_, _| {
-                    sender.input(AppMsg::DeleteAlbumConfirmed(id))
-                });
+                dialog.connect_response(Some("delete"), move |_, _| sender.input(AppMsg::DeleteAlbumConfirmed(id)));
                 dialog.present(Some(&self.window));
             }
             AppMsg::DeleteAlbumConfirmed(id) => match storage::delete_album(id) {
@@ -680,7 +698,21 @@ impl SimpleComponent for AppModel {
                     self.toast("Album deleted.");
                 }
                 Err(e) => self.toast(&format!("Couldn't delete the album: {e}")),
-            }
+            },
+            AppMsg::Preferences => {
+                let dialog = PreferencesDialog::builder()
+                    .launch(self.config.clone())
+                    .forward(sender.input_sender(), AppMsg::PreferencesResult);
+                dialog.widget().present(Some(&self.window));
+                self.preferences_dialog = Some(dialog);
+            },
+            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => self.config = c,
+            AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
+                self.preferences_dialog = None;
+                if let Err(e) = self.config.save() {
+                    self.toast(&format!("Couldn't save preferences: {e}"));
+                }
+            },
         }
     }
 
@@ -882,7 +914,10 @@ fn populate_sidebar(
     for (id, title) in albums {
         let id = *id;
         let sender = sender.clone();
-        let row = adw::ActionRow::builder().title(title.replace("&", "&amp;")).activatable(true).build();
+        let row = adw::ActionRow::builder()
+            .title(title.replace("&", "&amp;"))
+            .activatable(true)
+            .build();
         if id == current_id {
             list.select_row(Some(&row));
         }
