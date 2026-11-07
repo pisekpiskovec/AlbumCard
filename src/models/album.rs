@@ -284,9 +284,9 @@ impl Album {
         };
 
         if matches!(edit.mode, AlbumMode::Single) && !self.could_be_single(max_in_single) {
-            errors.push(
-                "Switching to Single requires removing all Disks/Voids and reducing to at most one Track first"
-                    .to_string(),
+            errors.push(format!(
+                "Switching to Single requires removing all Disks/Voids and reducing to at most {max_in_single} Track(s) first"
+                ),
             );
         }
 
