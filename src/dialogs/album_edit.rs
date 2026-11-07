@@ -242,6 +242,9 @@ impl Component for AlbumEditDialog {
             AlbumEditMsg::ArtistChanged(v) => self.edit.album_artist = v,
             AlbumEditMsg::ModeChanged(v) => self.edit.mode = v,
             AlbumEditMsg::Save => {
+                // Fake scratch album to apply changes to
+                // The limit for singles here is 1 but the real limit is already calculated before so nothing here is breaking
+                // Also the values must be the same! If changing, the tree in `self.could_be_single` must be the value + 1 !!!
                 let mut scratch =
                     Album::new(AlbumMode::Ep, "x", "x", "", "x", None).expect("static placeholder values always parse");
                 if !self.could_be_single {
