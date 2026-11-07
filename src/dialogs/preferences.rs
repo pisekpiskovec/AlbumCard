@@ -81,13 +81,37 @@ impl SimpleComponent for PreferencesDialog {
                 sender.input(PreferencesMsg::SkipPositionInSingle(row.is_active()));
             });
         }
+        let single_pattern_row = adw::EntryRow::new();
+        single_pattern_row.set_title("Filename pattern used when renaming items in Singles");
+        single_pattern_row.set_text(&config.rename_pattern_for_single);
+        {
+            let sender = sender.clone();
+            single_pattern_row.connect_changed(move |row| {
+                sender.input(PreferencesMsg::RenamePatterinInSingle(row.text().to_string()));
+            });
+        }
         let singles_group = adw::PreferencesGroup::builder().title("Singles").build();
         singles_group.add(&max_row);
         singles_group.add(&skip_row);
+        singles_group.add(&single_pattern_row);
+
+        // EPs
+        let ep_pattern_row = adw::EntryRow::new();
+        ep_pattern_row.set_title("Filename pattern used when renaming items in EPs");
+        ep_pattern_row.set_text(&config.rename_pattern_for_ep);
+        {
+            let sender = sender.clone();
+            ep_pattern_row.connect_changed(move |row| {
+                sender.input(PreferencesMsg::RenamePatterinInEp(row.text().to_string()));
+            });
+        }
+        let eps_group = adw::PreferencesGroup::builder().title("EPs").build();
+        eps_group.add(&ep_pattern_row);
 
         let page = adw::PreferencesPage::new();
         page.add(&albums_group);
         page.add(&singles_group);
+        page.add(&eps_group);
         root.add(&page);
 
         relm4::ComponentParts {
