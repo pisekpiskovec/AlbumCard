@@ -1,12 +1,15 @@
 #![cfg(test)]
 
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
+
+const DEFAULT_EP_PATTERN: &str = "%{artist} - %{album} - %{title}";
+const DEFAULT_SINGLE_PATTERN: &str = "%{artist} - %{title}";
 
 use crate::{
     config, models::{
         album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
-    }, tags::{read_track_edit, write_album_tags},
+    }, renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern}, tags::{read_track_edit, write_album_tags},
 };
 
 fn silent_mp3(name: &str) -> PathBuf {
@@ -26,6 +29,25 @@ fn track_at(path: PathBuf, title: &str) -> Track {
     let mut t = Track::new(path);
     t.title = title.to_string();
     t
+}
+
+fn parts() -> NameParts {
+    NameParts {
+        artists: vec!["Mili".into(), "World's End Girlfriend".into()],
+        album_artists: vec!["Mili".into()],
+        title: "Vitamins".into(),
+        album: "Millennium Mother".into(),
+        year: Some(2018),
+        track: Some(4),
+        disk: Some(1),
+    }
+}
+
+fn scratch(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("albumcard-rename-{}-{name}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    dir
 }
 
 #[test]
@@ -479,4 +501,96 @@ fn every_edit_field_survives_an_id3_round_trip() {
             sort_track_title: "sortTT".into(),
         }
     );
+}
+
+#[test]
+fn default_patterns_render() {
+    assert_eq!(render(DEFAULT_EP_PATTERN, &parts()).unwrap(), "Mili - Millennium Mother - Vitamins");
+    assert_eq!(render(DEFAULT_SINGLE_PATTERN, &parts()).unwrap(), "Mili - Vitamins");
+}
+
+#[test]
+fn every_token_is_filled() {
+    let r = render("%{artists}|%{artist}|%{title}|%{album}|%{year}|%{aartist}|%{track}|%{disk}", &parts()).unwrap();
+    assert_eq!(r, "Mili, World's End Girlfriend|Mili|Vitamins|Millennium Mother|2018|Mili|04|1");
+}
+
+#[test]
+fn missing_values_become_empty_and_slashes_are_replaced() {
+    let mut p = parts();
+    p.artists = vec!["AC/DC".into()];
+    p.year = None;
+    p.disk = None;
+    assert_eq!(render("%{artist} (%{year}) %{disk}", &p).unwrap(), "AC-DC ()");
+    let mut empty = NameParts::default();
+    empty.title = "  ".into();
+    assert!(render("%{title}", &empty).is_none());
+}
+
+#[test]
+fn unsafe_names_are_tidied() {
+    let mut p = parts();
+    p.title = "..hidden\u{0}  name. ".into();
+    assert_eq!(render("%{title}", &p).unwrap(), "hidden name");
+    p.title = "x".repeat(400);
+    assert!(render("%{title}", &p).unwrap().len() <= 240);
+}
+
+#[test]
+fn validation_names_the_problem() {
+    assert!(validate_pattern(DEFAULT_EP_PATTERN).is_ok());
+    assert!(validate_pattern("").is_err());
+    assert!(validate_pattern("%{artist} - %{titel}").unwrap_err().contains("%{titel}"));
+    assert!(validate_pattern("%{artist").unwrap_err().contains("Unclosed"));
+}
+
+#[test]
+fn plan_keeps_extension_and_skips_unchanged() {
+    let dir = scratch("plan");
+    let a = dir.join("old.mp3");
+    let b = dir.join("Same.mp3");
+    fs::write(&a, b"a").unwrap();
+    fs::write(&b, b"b").unwrap();
+    let plan = plan(&[(a.clone(), "New".into()), (b.clone(), "Same".into())]).unwrap();
+    assert_eq!(plan, vec![PlannedRename { from: a, to: dir.join("New.mp3")}]);
+}
+
+#[test]
+fn plan_rejects_duplicates_and_existing_files() {
+    let dir = scratch("conflict");
+    let (a, b, other) = (dir.join("a.mp3"), dir.join("b.mp3"), dir.join("Taken.mp3"));
+    for f in [&a, &b, &other] {
+        fs::write(f, b"x").unwrap();
+    }
+    let errs = plan(&[(a.clone(), "Same".into()), (b.clone(), "Same".into())]).unwrap_err();
+    assert!(errs[0].contains("would be used by both"));
+    let errs = plan(&[(a, "Taken".into())]).unwrap_err();
+    assert!(errs[0].contains("already exists"));
+}
+
+#[test]
+fn swapping_two_names_works() {
+    let dir = scratch("swap");
+    let (a, b) = (dir.join("01.mp3"), dir.join("02.mp3"));
+    fs::write(&a, b"first").unwrap();
+    fs::write(&b, b"second").unwrap();
+    let p = plan(&[(a.clone(), "02".into()), (b.clone(), "01".into())]).unwrap();
+    apply(&p).unwrap();
+    assert_eq!(fs::read(&a).unwrap(), b"second");
+    assert_eq!(fs::read(&b).unwrap(), b"first");
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 2, "no temp files left behind");
+}
+
+#[test]
+fn failure_rolls_everything_back() {
+    let dir = scratch("rollback");
+    let (a, b) = (dir.join("a.mp3"), dir.join("b.mp3"));
+    fs::write(&a, b"a").unwrap();
+    fs::write(&b, b"b").unwrap();
+    let bad = PlannedRename { from: b.clone(), to: dir.join("missing-dir").join("b.mp3") };
+    let good = PlannedRename { from: a.clone(), to: dir.join("renamed.mp3") };
+    assert!(apply(&[good, bad]).is_err());
+    assert_eq!(fs::read(&a).unwrap(), b"a");
+    assert_eq!(fs::read(&b).unwrap(), b"b");
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
 }
