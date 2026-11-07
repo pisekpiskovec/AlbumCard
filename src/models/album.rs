@@ -115,7 +115,7 @@ impl Album {
 
     /// Returns `false` if `disk` isn't allowed by the current mode.
     pub fn add_disk(&mut self) -> bool {
-        if !self.can_add(AlbumItemType::Disk) {
+        if !self.allowed_item_types().contains(&AlbumItemType::Disk) {
             return false;
         }
         self.items.push(AlbumItem::Disk);
@@ -124,7 +124,7 @@ impl Album {
 
     /// Returns `false` if `track` isn't allowed by the current mode.
     pub fn add_track(&mut self, track: Track, max_in_single: u32) -> bool {
-        if !self.can_add(AlbumItemType::Track) {
+        if !self.allowed_item_types().contains(&AlbumItemType::Track) {
             return false;
         }
         let tracks = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
@@ -137,7 +137,7 @@ impl Album {
 
     /// Returns `false` if `void` isn't allowed by the current mode.
     pub fn add_void(&mut self, size: u32) -> bool {
-        if !self.can_add(AlbumItemType::Void) {
+        if !self.allowed_item_types().contains(&AlbumItemType::Void) {
             return false;
         }
         self.items.push(AlbumItem::Void { size });
@@ -166,6 +166,7 @@ impl Album {
     /// Single source of truth for whether `kind` may be added right now,
     /// enforced by every `add_*` method so the model can never end up in
     /// an invalid state (e.g. a Single with a Disk, or two Tracks).
+    #[deprecated]
     fn can_add(&self, kind: AlbumItemType) -> bool {
         if !self.allowed_item_types().contains(&kind) {
             return false;
