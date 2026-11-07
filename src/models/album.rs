@@ -1,4 +1,4 @@
-use crate::{config, models::track::{DiscLabel, Track}};
+use crate::models::track::{DiscLabel, Track};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -257,14 +257,14 @@ impl Album {
         Some(count as u32)
     }
 
-    pub fn could_be_single(&self) -> bool {
+    pub fn could_be_single(&self, max_in_single: u32) -> bool {
         let track_count = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
         let has_disk = self.items.iter().any(|i| matches!(i, AlbumItem::Disk));
         let has_void = self.items.iter().any(|i| matches!(i, AlbumItem::Void { .. }));
-        track_count <= 1 && !has_disk && !has_void
+        track_count <= (max_in_single as usize) && !has_disk && !has_void
     }
 
-    pub fn apply_edit(&mut self, edit: AlbumEdit) -> Result<(), Vec<String>> {
+    pub fn apply_edit(&mut self, edit: AlbumEdit, max_in_single: u32) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
         let title = edit.title.trim().to_string();
         if title.is_empty() {
@@ -282,7 +282,7 @@ impl Album {
             },
         };
 
-        if matches!(edit.mode, AlbumMode::Single) && !self.could_be_single() {
+        if matches!(edit.mode, AlbumMode::Single) && !self.could_be_single(max_in_single) {
             errors.push(
                 "Switching to Single requires removing all Disks/Voids and reducing to at most one Track first"
                     .to_string(),

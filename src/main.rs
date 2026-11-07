@@ -470,7 +470,7 @@ impl SimpleComponent for AppModel {
                     genre: self.album.genre.clone(),
                     mode: self.album.mode,
                 };
-                let could_be_single = self.album.could_be_single();
+                let could_be_single = self.album.could_be_single(self.config.max_count_of_tracks_in_single);
                 let dialog = AlbumEditDialog::builder()
                     .launch((AlbumEditPurpose::Edit, edit, could_be_single))
                     .forward(sender.input_sender(), AppMsg::AlbumEditResult);
@@ -502,7 +502,7 @@ impl SimpleComponent for AppModel {
                         }
                     }
                     AlbumEditPurpose::Edit => {
-                        if let Err(errors) = self.album.apply_edit(edit) {
+                        if let Err(errors) = self.album.apply_edit(edit, self.config.max_count_of_tracks_in_single) {
                             eprintln!("unecpected validation failure applying album edit: {errors:?}");
                         }
                     }

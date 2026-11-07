@@ -245,11 +245,11 @@ impl Component for AlbumEditDialog {
                 let mut scratch =
                     Album::new(AlbumMode::Ep, "x", "x", "", "x", None).expect("static placeholder values always parse");
                 if !self.could_be_single {
-                    scratch.add_track(Track::new(PathBuf::new()));
-                    scratch.add_track(Track::new(PathBuf::new()));
+                    scratch.add_track(Track::new(PathBuf::new()), 1);
+                    scratch.add_track(Track::new(PathBuf::new()), 1);
                 }
 
-                match scratch.apply_edit(self.edit.clone()) {
+                match scratch.apply_edit(self.edit.clone(), 1) {
                     Ok(()) => {
                         sender
                             .output(AlbumEditOutput::Saved {
