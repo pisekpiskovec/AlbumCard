@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
-pub static VERSION: &str = "API007";
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
