@@ -357,7 +357,10 @@ fn write_then_read_round_trips_and_inherits_album_values() {
     t.sort_track_title = Some("Iron Lotus (sort)".to_string());
     album.add_track(t, 1);
 
-    let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
+    let summary = write_album_tags(
+        &album,
+        !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
+    );
     assert_eq!(summary.reports.len(), 1);
     assert!(summary.failures().next().is_none(), "{:?}", summary.reports);
     assert!(summary.art_error.is_none());
@@ -385,7 +388,10 @@ fn clearing_a_field_clears_it_in_the_file() {
     //Rebuild the album with the composer removed and write again.
     let mut album2 = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
     album2.add_track(track_at(path.clone(), "Song"), 1);
-    write_album_tags(&album2, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
+    write_album_tags(
+        &album2,
+        !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
+    );
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "");
 }
 
@@ -398,7 +404,10 @@ fn track_override_beats_album_and_missing_file_is_reported_not_fatal() {
     album.add_track(featured, 1);
     album.add_track(track_at(PathBuf::from("/definitely/not/here.mp3"), "Missing"), 1);
 
-    let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
+    let summary = write_album_tags(
+        &album,
+        !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
+    );
     assert_eq!(summary.reports.len(), 2);
     assert_eq!(summary.failures().count(), 1, "only the missing file should fail");
     assert_eq!(summary.failures().next().unwrap().index, 1);
@@ -443,7 +452,10 @@ fn every_edit_field_survives_an_id3_round_trip() {
     .unwrap();
     album.add_track(t.clone(), 1);
 
-    let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
+    let summary = write_album_tags(
+        &album,
+        !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
+    );
     assert!(summary.reports[0].result.is_ok());
     assert!(summary.reports[0].unsupported.is_empty());
 
