@@ -918,6 +918,7 @@ fn populate_sidebar(
         let id = *id;
         let sender = sender.clone();
         let row = adw::ActionRow::builder()
+            .title(title)
             .use_markup(false)
             .activatable(true)
             .build();
