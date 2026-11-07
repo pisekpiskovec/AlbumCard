@@ -83,7 +83,7 @@ impl SimpleComponent for PreferencesDialog {
         }
         let single_pattern_row = adw::EntryRow::new();
         single_pattern_row.set_title("Filename pattern used when renaming items in Singles");
-        single_pattern_row.set_text(&config.rename_pattern_for_single);
+        single_pattern_row.set_text(&config.rename_pattern_single);
         {
             let sender = sender.clone();
             single_pattern_row.connect_changed(move |row| {
@@ -98,7 +98,7 @@ impl SimpleComponent for PreferencesDialog {
         // EPs
         let ep_pattern_row = adw::EntryRow::new();
         ep_pattern_row.set_title("Filename pattern used when renaming items in EPs");
-        ep_pattern_row.set_text(&config.rename_pattern_for_ep);
+        ep_pattern_row.set_text(&config.rename_pattern_ep);
         {
             let sender = sender.clone();
             ep_pattern_row.connect_changed(move |row| {
@@ -125,8 +125,8 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesMsg::DefaultVoidSize(v) => self.config.default_void_size = v.max(1),
             PreferencesMsg::MaxTracksInSingle(v) => self.config.max_count_of_tracks_in_single = v.max(1),
             PreferencesMsg::SkipPositionInSingle(v) => self.config.skip_saving_track_position_in_single = v,
-            PreferencesMsg::RenamePatterinInEp(v) => self.config.rename_pattern_for_ep = v,
-            PreferencesMsg::RenamePatterinInSingle(v) => self.config.rename_pattern_for_single = v,
+            PreferencesMsg::RenamePatterinInEp(v) => self.config.rename_pattern_ep = v,
+            PreferencesMsg::RenamePatterinInSingle(v) => self.config.rename_pattern_single = v,
             PreferencesMsg::Closed => {
                 sender.output(PreferencesOutput::Closed).ok();
                 return;
