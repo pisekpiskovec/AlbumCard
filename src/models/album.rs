@@ -123,8 +123,12 @@ impl Album {
     }
 
     /// Returns `false` if `track` isn't allowed by the current mode.
-    pub fn add_track(&mut self, track: Track) -> bool {
+    pub fn add_track(&mut self, track: Track, max_in_single: u32) -> bool {
         if !self.can_add(AlbumItemType::Track) {
+            return false;
+        }
+        let tracks = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
+        if self.mode == AlbumMode::Single && tracks >= max_in_single as usize {
             return false;
         }
         self.items.push(AlbumItem::Track(track));
@@ -165,10 +169,6 @@ impl Album {
     fn can_add(&self, kind: AlbumItemType) -> bool {
         if !self.allowed_item_types().contains(&kind) {
             return false;
-        }
-
-        if kind == AlbumItemType::Track && self.mode == AlbumMode::Single {
-            return self.items.len() <= config::Config::load().unwrap_or_default().max_count_of_tracks_in_single as usize
         }
         true
     }

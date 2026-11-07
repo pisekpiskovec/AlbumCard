@@ -537,10 +537,10 @@ impl SimpleComponent for AppModel {
                     TrackEditTarget::New(path) => {
                         let mut track = Track::new(path.clone());
                         if track.apply_edit(edit).is_ok() {
-                            if self.album.add_track(track) {
+                            if self.album.add_track(track, self.config.max_count_of_tracks_in_single) {
                                 self.art_from_track(&path);
                             } else {
-                                self.toast("Single cannot hold more than 1 Track.");
+                                self.toast(&format!("Single cannot hold more than {} Track.", self.config.max_count_of_tracks_in_single));
                             }
                         }
                     }
