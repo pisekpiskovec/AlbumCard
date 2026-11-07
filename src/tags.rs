@@ -43,16 +43,6 @@ fn write_opts() -> WriteOptions {
     WriteOptions::new().parse_options(parse_opts())
 }
 
-#[deprecated]
-/// A few fields have no standard key in every tag format.
-fn custom_fallback(key: &ItemKey) -> Option<&'static str> {
-    match key {
-        ItemKey::Performer => Some("PERFORMER"),
-        ItemKey::ComposerSortOrder => Some("COMPOSERSORT"),
-        _ => None,
-    }
-}
-
 fn custom_name(key: ItemKey) -> Option<&'static str> {
     match key {
         ItemKey::Performer => Some("PERFORMER"),
