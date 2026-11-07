@@ -52,7 +52,7 @@ fn parsing_album_items() {
 
     album.add_disk();
     album.add_void(96);
-    album.add_track(track);
+    album.add_track(track, 1);
     album.add_void(236);
     album.add_disk();
     album.add_void(1);
@@ -66,8 +66,8 @@ fn single_mode_rejects_disks_and_a_second_track() {
         Album::new(Single, "Oh Crab So Crab", "ProjectMoon", "2023-01-01", "Soundtrack", None).expect("valid date");
 
     assert!(!album.add_disk(), "Single must not accept a Disk");
-    assert!(album.add_track(Track::new(PathBuf::from("a.mp3"))), "First track should succeed");
-    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3"))), "Single must not accept a second Track");
+    assert!(album.add_track(Track::new(PathBuf::from("a.mp3")), 1), "First track should succeed");
+    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3")), 1), "Single must not accept a second Track");
     assert_eq!(album.get_items().len(), 1);
 }
 
@@ -89,10 +89,10 @@ fn void_gap_with_no_disc_grouping() {
     let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_void(1);
-    album.add_track(Track::new(PathBuf::from("b.mp3")));
-    album.add_track(Track::new(PathBuf::from("c.mp3")));
+    album.add_track(Track::new(PathBuf::from("b.mp3")), 1);
+    album.add_track(Track::new(PathBuf::from("c.mp3")), 1);
     album.add_void(3);
-    album.add_track(Track::new(PathBuf::from("g.mp3")));
+    album.add_track(Track::new(PathBuf::from("g.mp3")), 1);
 
     let positions = album.item_positions();
     let rendered: Vec<String> = positions
@@ -134,13 +134,13 @@ fn void_gap_with_disc_grouping() {
 
     album.add_disk();
     album.add_void(1);
-    album.add_track(Track::new(PathBuf::from("b.mp3")));
-    album.add_track(Track::new(PathBuf::from("c.mp3")));
+    album.add_track(Track::new(PathBuf::from("b.mp3")), 1);
+    album.add_track(Track::new(PathBuf::from("c.mp3")), 1);
     album.add_void(3);
-    album.add_track(Track::new(PathBuf::from("g.mp3")));
+    album.add_track(Track::new(PathBuf::from("g.mp3")), 1);
     album.add_disk();
-    album.add_track(Track::new(PathBuf::from("h.mp3")));
-    album.add_track(Track::new(PathBuf::from("i.mp3")));
+    album.add_track(Track::new(PathBuf::from("h.mp3")), 1);
+    album.add_track(Track::new(PathBuf::from("i.mp3")), 1);
 
     let rendered: Vec<String> = album
         .item_positions()
@@ -155,9 +155,9 @@ fn void_gap_with_disc_grouping() {
 fn track_before_first_disk_is_unassigned_until_disk_moves_up() {
     let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
-    album.add_track(Track::new(PathBuf::from("a.mp3")));
+    album.add_track(Track::new(PathBuf::from("a.mp3")), 1);
     album.add_disk();
-    album.add_track(Track::new(PathBuf::from("b.mp3")));
+    album.add_track(Track::new(PathBuf::from("b.mp3")), 1);
 
     let rendered: Vec<String> = album
         .item_positions()
@@ -180,8 +180,8 @@ fn track_before_first_disk_is_unassigned_until_disk_moves_up() {
 fn move_item_rejects_out_of_bounds_and_no_ops_on_equal_indices() {
     let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
-    album.add_track(Track::new(PathBuf::from("a.mp3")));
-    album.add_track(Track::new(PathBuf::from("b.mp3")));
+    album.add_track(Track::new(PathBuf::from("a.mp3")), 1);
+    album.add_track(Track::new(PathBuf::from("b.mp3")), 1);
 
     assert!(!album.move_item(0, 5), "destination out of bounds must be rejected");
     assert!(!album.move_item(5, 0), "source out of bounds must be rejected");
@@ -194,7 +194,7 @@ fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
     let mut album = Album::new(Ep, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
     album.add_void(4);
-    album.add_track(Track::new(PathBuf::from("a.mp3")));
+    album.add_track(Track::new(PathBuf::from("a.mp3")), 1);
 
     let removed = album.remove_item(0);
     assert!(matches!(removed, Some(AlbumItem::Void { size: 4 })));
@@ -206,12 +206,12 @@ fn remove_item_returns_the_removed_item_and_none_out_of_bounds() {
 fn removing_the_track_frees_up_single_mode_for_another() {
     let mut album = Album::new(Single, "Title", "Artist", "2023-01-01", "Genre", None).expect("valid date");
 
-    assert!(album.add_track(Track::new(PathBuf::from("a.mp3"))));
-    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3"))), "Single already has its one track");
+    assert!(album.add_track(Track::new(PathBuf::from("a.mp3")), 1));
+    assert!(!album.add_track(Track::new(PathBuf::from("b.mp3")), 1), "Single already has its one track");
 
     assert!(album.remove_item(0).is_some());
     assert!(
-        album.add_track(Track::new(PathBuf::from("b.mp3"))),
+        album.add_track(Track::new(PathBuf::from("b.mp3")), 1),
         "removing the only track should free the single up to accepts a new one"
     );
 }
@@ -321,7 +321,7 @@ fn album_round_trips_through_json() {
     let mut track = Track::new(PathBuf::from("b.mp3"));
     track.title = "B Song".to_string();
     track.artist = Some("Studio EIM".to_string());
-    album.add_track(track);
+    album.add_track(track, 1);
     album.add_void(3);
 
     let json = album.to_json().expect("serialization should succeed");
@@ -355,7 +355,7 @@ fn write_then_read_round_trips_and_inherits_album_values() {
     let mut t = track_at(path.clone(), "Iron Lotus");
     t.composer = Some("Cassie Wei".to_string());
     t.sort_track_title = Some("Iron Lotus (sort)".to_string());
-    album.add_track(t);
+    album.add_track(t, 1);
 
     let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(summary.reports.len(), 1);
@@ -378,13 +378,13 @@ fn clearing_a_field_clears_it_in_the_file() {
     let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
     let mut t = track_at(path.clone(), "Song");
     t.composer = Some("Someone".to_string());
-    album.add_track(t);
+    album.add_track(t, 1);
     write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "Someone");
 
     //Rebuild the album with the composer removed and write again.
     let mut album2 = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
-    album2.add_track(track_at(path.clone(), "Song"));
+    album2.add_track(track_at(path.clone(), "Song"), 1);
     write_album_tags(&album2, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "");
 }
@@ -395,8 +395,8 @@ fn track_override_beats_album_and_missing_file_is_reported_not_fatal() {
     let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
     let mut featured = track_at(good.clone(), "Featured");
     featured.artist = Some("Guest".to_string());
-    album.add_track(featured);
-    album.add_track(track_at(PathBuf::from("/definitely/not/here.mp3"), "Missing"));
+    album.add_track(featured, 1);
+    album.add_track(track_at(PathBuf::from("/definitely/not/here.mp3"), "Missing"), 1);
 
     let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(summary.reports.len(), 2);
@@ -413,7 +413,7 @@ fn year_only_date_is_left_blank() {
     // a track whose date is None and album has none leaves the key absent -> blang.
     let path = silent_mp3("nodate.mp3");
     let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
-    album.add_track(track_at(path.clone(), "Song"));
+    album.add_track(track_at(path.clone(), "Song"), 1);
     write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().release_date, "");
     let _ = TrackEdit::default();
@@ -441,7 +441,7 @@ fn every_edit_field_survives_an_id3_round_trip() {
         sort_track_title: "sortTT".into(),
     })
     .unwrap();
-    album.add_track(t.clone());
+    album.add_track(t.clone(), 1);
 
     let summary = write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert!(summary.reports[0].result.is_ok());

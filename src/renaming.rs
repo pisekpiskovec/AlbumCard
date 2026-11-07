@@ -86,23 +86,17 @@ pub fn render(pattern: &str, parts: &NameParts) -> Option<String> {
             "year" => {
                 if let Some(y) = parts.year {
                     out.push_str(&y.to_string());
-                } else {
-                    out.push_str("");
                 }
             }
             "aartist" => out.push_str(parts.album_artists.first().map(String::as_str).unwrap_or("")),
             "track" => {
                 if let Some(t) = parts.track {
-                    out.push_str(&t.to_string());
-                } else {
-                    out.push_str("");
+                    out.push_str(&format!("{t:02}"));
                 }
             }
             "disk" => {
                 if let Some(d) = parts.disk {
                     out.push_str(&d.to_string());
-                } else {
-                    out.push_str("");
                 }
             }
             _ => {

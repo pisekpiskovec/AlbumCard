@@ -17,8 +17,8 @@ impl Default for Config {
             default_void_size: 1,
             max_count_of_tracks_in_single: 1,
             skip_saving_track_position_in_single: true,
-            rename_pattern_ep: "%Ar1 - %Al - %T".to_owned(),
-            rename_pattern_single: "%Ar1 - %T".to_owned(),
+            rename_pattern_ep: "%{artist} - %{album} - %{title}".to_owned(),
+            rename_pattern_single: "%{artist} - %{title}".to_owned(),
         }
     }
 }
