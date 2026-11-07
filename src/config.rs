@@ -9,6 +9,7 @@ pub struct Config {
     pub skip_saving_track_position_in_single: bool,
     pub rename_pattern_ep: String,
     pub rename_pattern_single: String,
+    pub rename_on_save: bool,
 }
 
 impl Default for Config {
@@ -19,6 +20,7 @@ impl Default for Config {
             skip_saving_track_position_in_single: true,
             rename_pattern_ep: "%{artist} - %{album} - %{title}".to_owned(),
             rename_pattern_single: "%{artist} - %{title}".to_owned(),
+            rename_on_save: true,
         }
     }
 }

@@ -1,7 +1,7 @@
 use adw::prelude::*;
 use relm4::SimpleComponent;
 
-use crate::config::Config;
+use crate::{config::Config, renaming::validate_pattern};
 
 #[derive(Debug)]
 pub enum PreferencesMsg {
@@ -10,6 +10,7 @@ pub enum PreferencesMsg {
     SkipPositionInSingle(bool),
     RenamePatterinInEp(String),
     RenamePatterinInSingle(String),
+    RenameFileOnSave(bool),
     Closed,
 }
 
@@ -81,37 +82,58 @@ impl SimpleComponent for PreferencesDialog {
                 sender.input(PreferencesMsg::SkipPositionInSingle(row.is_active()));
             });
         }
+        let singles_group = adw::PreferencesGroup::builder().title("Singles").build();
+        singles_group.add(&max_row);
+        singles_group.add(&skip_row);
+
+        // File renaming
+        let rename_on_save_row = adw::SwitchRow::builder()
+            .title("Rename files on save")
+            .active(config.rename_on_save)
+            .build();
+        {
+            let sender = sender.clone();
+            rename_on_save_row.connect_active_notify(move |row| {
+                sender.input(PreferencesMsg::RenameFileOnSave(row.is_active()));
+            });
+        }
         let single_pattern_row = adw::EntryRow::new();
         single_pattern_row.set_title("Filename pattern used when renaming items in Singles");
         single_pattern_row.set_text(&config.rename_pattern_single);
         {
             let sender = sender.clone();
             single_pattern_row.connect_changed(move |row| {
-                sender.input(PreferencesMsg::RenamePatterinInSingle(row.text().to_string()));
+                if validate_pattern(row.text().as_str()).is_ok() {
+                    row.remove_css_class("error");
+                    sender.input(PreferencesMsg::RenamePatterinInSingle(row.text().to_string()));
+                } else {
+                    row.add_css_class("error");
+                }
             });
         }
-        let singles_group = adw::PreferencesGroup::builder().title("Singles").build();
-        singles_group.add(&max_row);
-        singles_group.add(&skip_row);
-        singles_group.add(&single_pattern_row);
-
-        // EPs
         let ep_pattern_row = adw::EntryRow::new();
         ep_pattern_row.set_title("Filename pattern used when renaming items in EPs");
         ep_pattern_row.set_text(&config.rename_pattern_ep);
         {
             let sender = sender.clone();
             ep_pattern_row.connect_changed(move |row| {
-                sender.input(PreferencesMsg::RenamePatterinInEp(row.text().to_string()));
+                if validate_pattern(row.text().as_str()).is_ok() {
+                    row.remove_css_class("error");
+                    sender.input(PreferencesMsg::RenamePatterinInEp(row.text().to_string()));
+                } else {
+                    row.add_css_class("error");
+                }
             });
         }
-        let eps_group = adw::PreferencesGroup::builder().title("EPs").build();
-        eps_group.add(&ep_pattern_row);
+        let rename_group = adw::PreferencesGroup::builder().title("File Renaming").build();
+        rename_group.add(&rename_on_save_row);
+        rename_group.add(&single_pattern_row);
+        rename_group.add(&ep_pattern_row);
 
         let page = adw::PreferencesPage::new();
         page.add(&albums_group);
         page.add(&singles_group);
-        page.add(&eps_group);
+        page.add(&rename_group);
         root.add(&page);
 
         relm4::ComponentParts {
@@ -127,6 +149,7 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesMsg::SkipPositionInSingle(v) => self.config.skip_saving_track_position_in_single = v,
             PreferencesMsg::RenamePatterinInEp(v) => self.config.rename_pattern_ep = v,
             PreferencesMsg::RenamePatterinInSingle(v) => self.config.rename_pattern_single = v,
+            PreferencesMsg::RenameFileOnSave(v) => self.config.rename_on_save = v,
             PreferencesMsg::Closed => {
                 sender.output(PreferencesOutput::Closed).ok();
                 return;
