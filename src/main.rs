@@ -1,6 +1,7 @@
 mod config;
 mod dialogs;
 mod models;
+mod renaming;
 mod storage;
 mod tags;
 mod tests;
