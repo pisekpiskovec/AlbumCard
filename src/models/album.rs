@@ -242,6 +242,16 @@ impl Album {
         true
     }
 
+    pub fn remap_paths(&mut self, map: &std::collections::HashMap<PathBuf, PathBuf>) {
+        for item in &mut self.items {
+            if let AlbumItem::Track(track) = item
+                && let Some(new) = map.get(&track.file_path)
+            {
+                track.file_path = new.clone();
+            }
+        }
+    }
+
     /// Mutable access to the item at `index`
     pub fn get_item_mut(&mut self, index: usize) -> Option<&mut AlbumItem> {
         self.items.get_mut(index)

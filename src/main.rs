@@ -6,9 +6,11 @@ mod storage;
 mod tags;
 mod tests;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use adw::prelude::*;
+use chrono::Datelike;
 use gtk::gdk::BUTTON_SECONDARY;
 use gtk::{FileDialog, FileFilter};
 use relm4::prelude::*;
@@ -24,6 +26,7 @@ use crate::models::{
     album::{Album, AlbumItem, AlbumItemType, AlbumMode},
     track::Track,
 };
+use crate::renaming::{NameParts, PlannedRename};
 
 #[derive(Debug)]
 enum Direction {
@@ -74,6 +77,8 @@ enum AppMsg {
     UnsavedResponse(String),
     CloseRequest,
     PreferencesResult(PreferencesOutput),
+    RenameRequest,
+    RenameConfirmed,
 }
 
 struct AppWidgets {
@@ -89,6 +94,7 @@ struct AppWidgets {
     add_void_action: gtk::gio::SimpleAction,
     save_button: gtk::Button,
     del_art_action: gtk::gio::SimpleAction,
+    rename_button: gtk::Button,
 }
 
 impl SimpleComponent for AppModel {
@@ -279,6 +285,16 @@ impl SimpleComponent for AppModel {
         }
         content_header.pack_start(&save_button);
 
+        let rename_button = gtk::Button::from_icon_name("edit-find-replace-symbolic");
+        rename_button.set_sensitive(false);
+        {
+            let sender = sender.clone();
+            rename_button.connect_clicked(move |_| {
+                sender.input(AppMsg::RenameRequest);
+            });
+        }
+        content_header.pack_start(&rename_button);
+
         let art_icon = gtk::Image::from_icon_name("folder-music-symbolic");
         art_icon.set_pixel_size(48);
 
@@ -412,6 +428,7 @@ impl SimpleComponent for AppModel {
             add_void_action,
             save_button,
             del_art_action,
+            rename_button,
         };
 
         ComponentParts { model, widgets }
@@ -425,10 +442,15 @@ impl SimpleComponent for AppModel {
                 }
                 AlbumItemType::Track => {
                     // Early album type check
-                    if self.album.mode == AlbumMode::Single && self.album.get_items().len() >= self.config.max_count_of_tracks_in_single as usize {
+                    if self.album.mode == AlbumMode::Single
+                        && self.album.get_items().len() >= self.config.max_count_of_tracks_in_single as usize
+                    {
                         self.toast_overlay.add_toast(
                             adw::Toast::builder()
-                                .title(format!("Single cannot hold more than {} Track.", self.config.max_count_of_tracks_in_single))
+                                .title(format!(
+                                    "Single cannot hold more than {} Track.",
+                                    self.config.max_count_of_tracks_in_single
+                                ))
                                 .build(),
                         );
                         return;
@@ -541,7 +563,10 @@ impl SimpleComponent for AppModel {
                             if self.album.add_track(track, self.config.max_count_of_tracks_in_single) {
                                 self.art_from_track(&path);
                             } else {
-                                self.toast(&format!("Single cannot hold more than {} Track.", self.config.max_count_of_tracks_in_single));
+                                self.toast(&format!(
+                                    "Single cannot hold more than {} Track.",
+                                    self.config.max_count_of_tracks_in_single
+                                ));
                             }
                         }
                     }
@@ -709,13 +734,56 @@ impl SimpleComponent for AppModel {
                     .forward(sender.input_sender(), AppMsg::PreferencesResult);
                 dialog.widget().present(Some(&self.window));
                 self.preferences_dialog = Some(dialog);
-            },
+            }
             AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => self.config = c,
             AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
                 self.preferences_dialog = None;
                 if let Err(e) = self.config.save() {
                     self.toast(&format!("Couldn't save preferences: {e}"));
                 }
+            }
+            AppMsg::RenameRequest => {
+                if self.is_dirty() {
+                    self.toast("Save the album before renaming its files.");
+                    return;
+                }
+                match self.rename_plan() {
+                    Err(errors) => self.toast(&Self::firts_problem(&errors)),
+                    Ok(plan) if plan.is_empty() => self.toast("File names alreafy match the pattern."),
+                    Ok(plan) => {
+                        let name =
+                            |p: &std::path::Path| p.file_name().and_then(|n| n.to_str()).unwrap_or("?").to_string();
+                        let mut lines: Vec<String> = plan
+                            .iter()
+                            .take(8)
+                            .map(|s| format!("{} → {}", name(&s.from), name(&s.to)))
+                            .collect();
+                        if plan.len() > 8 {
+                            lines.push(format!("...and {} more", plan.len() - 8));
+                        }
+                        let dialog = adw::AlertDialog::builder()
+                            .heading("Rename files?")
+                            .body(lines.join("\n"))
+                            .build();
+                        dialog.add_responses(&[("cancel", "Cancel"), ("rename", "Rename")]);
+                        dialog.set_response_appearance("rename", adw::ResponseAppearance::Suggested);
+                        dialog.set_close_response("cancel");
+                        let sender = sender.clone();
+                        dialog.connect_response(Some("rename"), move |_, _| sender.input(AppMsg::RenameConfirmed));
+                        dialog.present(Some(&self.window));
+                    }
+                }
+            }
+            AppMsg::RenameConfirmed => match self.rename_files() {
+                Ok(0) => {}
+                Ok(n) => {
+                    match storage::save_album(&self.album) {
+                        Ok(()) => self.saved_json = self.album.to_json().unwrap_or_default(),
+                        Err(e) => self.toast(&format!("Files renamed, but the album couldn't be saved: {e}.")),
+                    }
+                    self.toast(&format!("Renamed {n} file(s)."));
+                }
+                Err(errors) => self.toast(&Self::firts_problem(&errors)),
             },
         }
     }
@@ -752,7 +820,17 @@ impl SimpleComponent for AppModel {
             action.set_enabled(allowed.contains(&kind));
         }
 
-        if self.is_dirty() {
+        let has_tracks = self.album.get_items().iter().any(|i| matches!(i, AlbumItem::Track(_)));
+        let dirty = self.is_dirty();
+
+        widgets.rename_button.set_sensitive(has_tracks && !dirty);
+        widgets.rename_button.set_tooltip_text(Some(if dirty {
+            "Save the album before renaming its files"
+        } else {
+            "Rename files to match the pattern"
+        }));
+
+        if dirty {
             widgets.save_button.add_css_class("suggested-action");
         } else {
             widgets.save_button.remove_css_class("suggested-action");
@@ -783,7 +861,10 @@ impl AppModel {
             return false;
         }
 
-        let summary = tags::write_album_tags(&self.album, !(self.album.mode == AlbumMode::Single && self.config.skip_saving_track_position_in_single));
+        let summary = tags::write_album_tags(
+            &self.album,
+            !(self.album.mode == AlbumMode::Single && self.config.skip_saving_track_position_in_single),
+        );
         if let Some(art) = &summary.art_error {
             self.toast(&format!("Cover not embedded: {art}"));
         }
@@ -800,6 +881,20 @@ impl AppModel {
                 }
             ));
         }
+
+        if self.config.rename_on_save && summary.failures().next().is_none() {
+            match self.rename_files() {
+                Ok(0) => {}
+                Ok(_) => {
+                    if let Err(e) = storage::save_album(&self.album) {
+                        self.toast(&format!("Files renamed, but the album couldn't be saved: {e}."));
+                        return false;
+                    }
+                }
+                Err(errors) => self.toast(&format!("Renaming skipped: {}", Self::firts_problem(&errors))),
+            }
+        }
+
         self.saved_json = self.album.to_json().unwrap_or_default();
         self.sidebar_albums = storage::list_albums();
         summary.failures().next().is_none()
@@ -868,6 +963,62 @@ impl AppModel {
             }
             Ok(None) => {}
             Err(e) => self.toast(&format!("Couldn't read the cover: {e}")),
+        }
+    }
+
+    fn rename_plan(&self) -> Result<Vec<PlannedRename>, Vec<String>> {
+        let pattern = match self.album.mode {
+            AlbumMode::Single => &self.config.rename_pattern_single,
+            AlbumMode::Ep => &self.config.rename_pattern_ep,
+        };
+        let album_artist = tags::split_values(&self.album.album_artist);
+        let positions = self.album.item_positions();
+        let mut items = Vec::new();
+        let mut errors = Vec::new();
+
+        for (item, position) in self.album.get_items().iter().zip(positions) {
+            let AlbumItem::Track(track) = item else { continue };
+            let parts = NameParts {
+                artists: tags::split_values(track.effective_artist(&self.album)),
+                album_artists: album_artist.clone(),
+                title: track.title.clone(),
+                album: self.album.title.clone(),
+                year: track.release_date.or(self.album.release_date).map(|d| d.year()),
+                track: position.and_then(|p| p.track),
+                disk: position.and_then(|p| match p.disk {
+                    models::track::DiscLabel::Numbered(n) => Some(n),
+                    _ => None,
+                }),
+            };
+            match renaming::render(pattern, &parts) {
+                Some(stem) => items.push((track.file_path.clone(), stem)),
+                None => errors.push(format!("\"{}\" would get an empty file name", track.title)),
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+        renaming::plan(&items)
+    }
+
+    /// Renames on disk and updates the album's paths. Does not nave the album.
+    fn rename_files(&mut self) -> Result<usize, Vec<String>> {
+        let plan = self.rename_plan()?;
+        if plan.is_empty() {
+            return Ok(0);
+        }
+        renaming::apply(&plan).map_err(|e| vec![e])?;
+        let map: HashMap<_, _> = plan.iter().map(|p| (p.from.clone(), p.to.clone())).collect();
+        self.album.remap_paths(&map);
+        Ok(plan.len())
+    }
+
+    fn firts_problem(errors: &[String]) -> String {
+        match errors {
+            [] => String::new(),
+            [only] => only.clone(),
+            [first, rest @ ..] => format!("{first} (+{} more)", rest.len()),
         }
     }
 }
