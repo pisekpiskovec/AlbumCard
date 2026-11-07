@@ -424,10 +424,10 @@ impl SimpleComponent for AppModel {
                 }
                 AlbumItemType::Track => {
                     // Early album type check
-                    if self.album.mode == AlbumMode::Single && !self.album.get_items().is_empty() {
+                    if self.album.mode == AlbumMode::Single && self.album.get_items().len() >= self.config.max_count_of_tracks_in_single as usize {
                         self.toast_overlay.add_toast(
                             adw::Toast::builder()
-                                .title("Single cannot hold more than 1 Track.")
+                                .title(format!("Single cannot hold more than {} Track.", self.config.max_count_of_tracks_in_single))
                                 .build(),
                         );
                         return;

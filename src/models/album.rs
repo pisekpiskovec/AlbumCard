@@ -1,4 +1,4 @@
-use crate::models::track::{DiscLabel, Track};
+use crate::{config, models::track::{DiscLabel, Track}};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -168,7 +168,7 @@ impl Album {
         }
 
         if kind == AlbumItemType::Track && self.mode == AlbumMode::Single {
-            return !self.items.iter().any(|i| matches!(i, AlbumItem::Track(_)));
+            return self.items.len() <= config::Config::load().unwrap_or_default().max_count_of_tracks_in_single as usize
         }
         true
     }
