@@ -144,22 +144,12 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
         }
     };
 
-    let split_trim_join = |value: &str| {
-        value
-            .split(&[',', ';', '/', '+', '\0'])
-            .map(str::trim)
-            .filter(|p| !p.is_empty())
-            .map(|r| r.to_string())
-            .collect::<Vec<_>>()
-            .join(";")
-    };
-
     let multi = |key: ItemKey| {
         let v = all_values(tag, key);
         if v.is_empty() {
             custom_name(key)
                 .and_then(|n| read_custom(path, n))
-                .map(|s| split_trim_join(&s))
+                .map(|s| split_values(&s).join(";"))
                 .unwrap_or_default()
         } else {
             v
@@ -182,8 +172,8 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
     Ok(TrackEdit {
         file_path: path.to_path_buf(),
         title,
-        artist: inherit(all_values(tag, ItemKey::TrackArtist), &split_trim_join(album_artist)),
-        genre: inherit(all_values(tag, ItemKey::Genre), &split_trim_join(album_genre)),
+        artist: inherit(all_values(tag, ItemKey::TrackArtist), &split_values(album_artist).join(";")),
+        genre: inherit(all_values(tag, ItemKey::Genre), &split_values(album_genre).join(";")),
         release_date,
         performer: multi(ItemKey::Performer),
         composer: multi(ItemKey::Composer),
@@ -521,14 +511,17 @@ pub fn write_album_tags(album: &Album, save_position: bool) -> WriteSummary {
     summary
 }
 
-fn connect_values(value: &str) -> String {
+pub fn split_values(value: &str) -> Vec<String> {
     value
-        .split(&[';', '|'])
+        .split([';', '|', '\0'])
         .map(str::trim)
         .filter(|p| !p.is_empty())
-        .map(|r| r.to_string())
-        .collect::<Vec<_>>()
-        .join("\0")
+        .map(str::to_string)
+        .collect()
+}
+
+fn connect_values(value: &str) -> String {
+    split_values(value).join("\0")
 }
 
 fn all_values(tag: &Tag, key: ItemKey) -> String {
