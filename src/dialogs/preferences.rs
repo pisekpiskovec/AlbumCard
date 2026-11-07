@@ -103,11 +103,14 @@ impl SimpleComponent for PreferencesDialog {
         {
             let sender = sender.clone();
             single_pattern_row.connect_changed(move |row| {
-                if validate_pattern(row.text().as_str()).is_ok() {
+                let valid = validate_pattern(row.text().as_str());
+                if valid.is_ok() {
                     row.remove_css_class("error");
+                    row.set_tooltip_text(Some(""));
                     sender.input(PreferencesMsg::RenamePatterinInSingle(row.text().to_string()));
                 } else {
                     row.add_css_class("error");
+                    row.set_tooltip_text(valid.err().as_deref());
                 }
             });
         }
@@ -117,11 +120,14 @@ impl SimpleComponent for PreferencesDialog {
         {
             let sender = sender.clone();
             ep_pattern_row.connect_changed(move |row| {
-                if validate_pattern(row.text().as_str()).is_ok() {
+                let valid = validate_pattern(row.text().as_str());
+                if valid.is_ok() {
                     row.remove_css_class("error");
+                    row.set_tooltip_text(Some(""));
                     sender.input(PreferencesMsg::RenamePatterinInEp(row.text().to_string()));
                 } else {
                     row.add_css_class("error");
+                    row.set_tooltip_text(valid.err().as_deref());
                 }
             });
         }
