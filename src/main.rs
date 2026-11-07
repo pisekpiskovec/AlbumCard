@@ -667,7 +667,10 @@ impl SimpleComponent for AppModel {
             AppMsg::ImageFileChosen(art_path) => {
                 self.album.art_path = Some(art_path);
             }
-            AppMsg::CloseRequest => self.leave(Pending::Quit, &sender),
+            AppMsg::CloseRequest => {
+                self.config.save().ok();
+                self.leave(Pending::Quit, &sender);
+            }
             AppMsg::ClearAlbumArt => self.album.art_path = None,
             AppMsg::DeleteAlbumRequest(id) => {
                 let name = self
