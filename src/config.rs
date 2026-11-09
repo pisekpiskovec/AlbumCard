@@ -20,7 +20,7 @@ impl Default for Config {
             skip_saving_track_position_in_single: true,
             rename_pattern_ep: "%{artist} - %{album} - %{title}".to_owned(),
             rename_pattern_single: "%{artist} - %{title}".to_owned(),
-            rename_on_save: true,
+            rename_on_save: false,
         }
     }
 }
