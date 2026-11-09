@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 23:59+0100\n"
+"POT-Creation-Date: 2026-11-10 00:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -197,7 +197,7 @@ msgstr ""
 msgid "Album deleted."
 msgstr ""
 
-#: src/main.rs:753
+#: src/main.rs:753 src/main.rs:834
 msgid "Save the album before renaming its files."
 msgstr ""
 
@@ -211,10 +211,6 @@ msgstr ""
 
 #: src/main.rs:774
 msgid "Rename"
-msgstr ""
-
-#: src/main.rs:834
-msgid "Save the album before renaming its files"
 msgstr ""
 
 #: src/main.rs:836

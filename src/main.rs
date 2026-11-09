@@ -831,7 +831,7 @@ impl SimpleComponent for AppModel {
 
         widgets.rename_button.set_sensitive(has_tracks && !dirty);
         widgets.rename_button.set_tooltip_text(Some(&if dirty {
-            gettext("Save the album before renaming its files")
+            gettext("Save the album before renaming its files.")
         } else {
             gettext("Rename files to match the pattern")
         }));
