@@ -117,6 +117,9 @@ impl SimpleComponent for AppModel {
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
+        #[cfg(debug_assertions)]
+        root.add_css_class("devel");
+
         {
             let sender = sender.clone();
             root.connect_close_request(move |_| {
