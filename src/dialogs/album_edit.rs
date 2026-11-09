@@ -4,10 +4,10 @@ use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use relm4::prelude::*;
 
-use crate::models::{
+use crate::{models::{
     album::{Album, AlbumEdit, AlbumMode},
     track::Track,
-};
+}, tags};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlbumEditPurpose {
@@ -22,6 +22,7 @@ pub enum AlbumEditMsg {
     ReleaseDateChanged(String),
     GenreChanged(String),
     ModeChanged(AlbumMode),
+    AddGenre(String),
     Save,
     Cancel,
 }
@@ -41,6 +42,7 @@ pub struct AlbumEditDialog {
 pub struct AlbumEditWidgets {
     release_date_button: gtk::MenuButton,
     toast_overlay: adw::ToastOverlay,
+    genre_row: adw::EntryRow,
 }
 
 fn release_date_label(value: &str) -> &str {
@@ -147,7 +149,6 @@ impl Component for AlbumEditDialog {
         entry_row!("Artist", album_artist, ArtistChanged);
 
         // Release date
-
         let calendar = gtk::Calendar::new();
         if let Ok(parsed) = NaiveDate::parse_from_str(&edit.release_date, "%Y-%m-%d") {
             calendar.set_year(parsed.year());
@@ -193,7 +194,33 @@ impl Component for AlbumEditDialog {
         release_date_row.add_suffix(&release_date_button);
         group.add(&release_date_row);
 
-        entry_row!("Genre", genre, GenreChanged);
+        let genre_row = adw::EntryRow::builder()
+            .title("Genre")
+            .text(edit.genre.as_str())
+            .build();
+        {
+            let sender = sender.clone();
+            genre_row.connect_changed(move |row| {
+                sender.input(AlbumEditMsg::GenreChanged(row.text().to_string()));
+            });
+        }
+        group.add(&genre_row);
+
+        let genre_list_row = adw::ExpanderRow::builder()
+            .title("Suggested Genres")
+            .subtitle("Pick one or more from these widely recognised genres.")
+            .build();
+        for genre in get_genres_vector() {
+            let add_genre_button = adw::ButtonRow::builder().title(genre).build();
+            {
+                let sender = sender.clone();
+                add_genre_button.connect_activated(move |row| {
+                    sender.input(AlbumEditMsg::AddGenre(row.title().to_string()));
+                });
+            }
+            genre_list_row.add_row(&add_genre_button);
+        }
+        group.add(&genre_list_row);
 
         let toast_overlay = adw::ToastOverlay::new();
         let scroller = gtk::ScrolledWindow::builder().vexpand(true).child(&group).build();
@@ -223,6 +250,7 @@ impl Component for AlbumEditDialog {
         let widgets = AlbumEditWidgets {
             release_date_button,
             toast_overlay,
+            genre_row,
         };
 
         ComponentParts { model, widgets }
@@ -241,6 +269,18 @@ impl Component for AlbumEditDialog {
             AlbumEditMsg::ReleaseDateChanged(v) => self.edit.release_date = v,
             AlbumEditMsg::ArtistChanged(v) => self.edit.album_artist = v,
             AlbumEditMsg::ModeChanged(v) => self.edit.mode = v,
+            AlbumEditMsg::AddGenre(v) => {
+                let already_added = tags::split_values(&self.edit.genre);
+                if already_added.contains(&v) {
+                    return;
+                }
+
+                if !already_added.is_empty() {
+                    self.edit.genre.push(';');
+                }
+                self.edit.genre.push_str(&v);
+                widgets.genre_row.set_text(&self.edit.genre);
+            }
             AlbumEditMsg::Save => {
                 // Fake scratch album to apply changes to
                 // The limit for singles here is 1 but the real limit is already calculated before so nothing here is breaking
@@ -281,4 +321,28 @@ impl Component for AlbumEditDialog {
             .release_date_button
             .set_label(release_date_label(&self.edit.release_date));
     }
+}
+
+fn get_genres_vector() -> Vec<String> {
+    vec![
+        "Blues".to_owned(),
+        "Classic rock".to_owned(),
+        "Country".to_owned(),
+        "Dance".to_owned(),
+        "Disco".to_owned(),
+        "Funk".to_owned(),
+        "Grunge".to_owned(),
+        "Hip-hop".to_owned(),
+        "Jazz".to_owned(),
+        "Metal".to_owned(),
+        "New age".to_owned(),
+        "Oldies".to_owned(),
+        "Pop".to_owned(),
+        "Rhythm and blues".to_owned(),
+        "Rap".to_owned(),
+        "Reggae".to_owned(),
+        "Rock".to_owned(),
+        "Techno".to_owned(),
+        "Industiral".to_owned(),
+    ]
 }
