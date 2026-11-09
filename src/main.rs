@@ -600,7 +600,7 @@ impl SimpleComponent for AppModel {
                     .developers(vec!["Písek Pískovec"])
                     .artists(vec!["Písek Pískovec"])
                     // .translator_credits(vec![])
-                    .comments("R.I.P.\nNext generation of audio taggers")
+                    .comments(format!("{}\nNext generation of audio taggers", config::CODENAME))
                     .website("https://github.com/PisekPiskovec/AlbumCard")
                     .issue_url("https://github.com/PisekPiskovec/AlbumCard/issues")
                     .license_type(gtk::License::Gpl30)

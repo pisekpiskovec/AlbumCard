@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
+pub const CODENAME: &str = "R.I.P.";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
