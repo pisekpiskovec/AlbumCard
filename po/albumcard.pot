@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 22:38+0100\n"
+"POT-Creation-Date: 2026-11-09 23:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,138 +17,230 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/main.rs:157
+#: src/dialogs/preferences.rs:38 src/main.rs:152
 msgid "Preferences"
 msgstr ""
 
-#: src/main.rs:173
-msgid "About AlbumCard"
+#: src/dialogs/preferences.rs:53
+msgid "Default Void size"
 msgstr ""
 
-#: src/main.rs:186
-msgid "Main Menu"
+#: src/dialogs/preferences.rs:54
+msgid "Size give to a newly added Void"
 msgstr ""
 
-#: src/main.rs:195
-msgid "New Album"
-msgstr ""
-
-#: src/main.rs:230
+#: src/dialogs/preferences.rs:62 src/main.rs:220
 msgid "Albums"
 msgstr ""
 
-#: src/main.rs:265
-msgid "Disk"
+#: src/dialogs/preferences.rs:67
+msgid "Tracks in a Single"
 msgstr ""
 
-#: src/main.rs:266
-msgid "Track"
+#: src/dialogs/preferences.rs:68
+msgid "How many tracks a Single may hold"
 msgstr ""
 
-#: src/main.rs:267
-msgid "Void"
+#: src/dialogs/preferences.rs:77
+msgid "Don't write track number for Singles"
 msgstr ""
 
-#: src/main.rs:277
-msgid "Add Item"
+#: src/dialogs/preferences.rs:86
+msgid "Singles"
 msgstr ""
 
-#: src/main.rs:332
-msgid "Load Album Art"
+#: src/dialogs/preferences.rs:92
+msgid "Rename files on save"
 msgstr ""
 
-#: src/main.rs:333
-msgid "Remove Album Art"
+#: src/dialogs/preferences.rs:102
+msgid "Filename pattern used when renaming items in Singles"
 msgstr ""
 
-#: src/main.rs:477
-msgid "Open audio file"
+#: src/dialogs/preferences.rs:119
+msgid "Filename pattern used when renaming items in EPs"
 msgstr ""
 
-#: src/main.rs:612
-msgid "translator-credits"
+#: src/dialogs/preferences.rs:135
+msgid "File Renaming"
 msgstr ""
 
-#: src/main.rs:665
-msgid "Album saved successfully."
+#: src/dialogs/track_edit.rs:53 src/dialogs/album_edit.rs:49
+msgid "Not set"
 msgstr ""
 
-#: src/main.rs:693
-msgid "Open Image"
+#: src/dialogs/track_edit.rs:68 src/dialogs/album_edit.rs:64
+msgid "Edit Track"
 msgstr ""
 
-#: src/main.rs:722
-msgid "Delete album?"
-msgstr ""
-
-#: src/main.rs:725 src/main.rs:781 src/main.rs:954
-msgid "Cancel"
-msgstr ""
-
-#: src/main.rs:725 src/main.rs:1095
-msgid "Delete Album"
-msgstr ""
-
-#: src/main.rs:740
-msgid "Album deleted."
-msgstr ""
-
-#: src/main.rs:760
-msgid "Save the album before renaming its files."
-msgstr ""
-
-#: src/main.rs:765
-msgid "File names already match the pattern."
-msgstr ""
-
-#: src/main.rs:778
-msgid "Rename files?"
-msgstr ""
-
-#: src/main.rs:781
-msgid "Rename"
-msgstr ""
-
-#: src/main.rs:841
-msgid "Save the album before renaming its files"
-msgstr ""
-
-#: src/main.rs:843
-msgid "Rename files to match the pattern"
-msgstr ""
-
-#: src/main.rs:951
-msgid "Unsaved changes"
-msgstr ""
-
-#: src/main.rs:952
-msgid "Save changes to this album before continuing?"
-msgstr ""
-
-#: src/main.rs:954
-msgid "Discard"
-msgstr ""
-
-#: src/main.rs:954
+#: src/dialogs/track_edit.rs:83 src/dialogs/album_edit.rs:86 src/main.rs:950
 msgid "Save"
 msgstr ""
 
-#: src/main.rs:975
-msgid "Album art taken from the new track."
+#: src/dialogs/track_edit.rs:92
+msgid "New Track"
 msgstr ""
 
-#: src/main.rs:1041
+#: src/dialogs/track_edit.rs:93
+msgid "Add"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:98
+msgid "Track Details"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:101
+msgid "Sorting Details"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:132
+msgid "File Path"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:149 src/dialogs/album_edit.rs:159
+msgid "Clear date"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:181 src/dialogs/album_edit.rs:191
+msgid "Release date"
+msgstr ""
+
+#: src/dialogs/track_edit.rs:182
+msgid "Blank to use album release date"
+msgstr ""
+
+#: src/dialogs/album_edit.rs:74 src/main.rs:185
+msgid "New Album"
+msgstr ""
+
+#: src/dialogs/album_edit.rs:75
+msgid "Edit Album"
+msgstr ""
+
+#: src/dialogs/album_edit.rs:85
+msgid "Create"
+msgstr ""
+
+#: src/dialogs/album_edit.rs:98 src/main.rs:1038
 msgid "Single"
 msgstr ""
 
-#: src/main.rs:1042
+#: src/dialogs/album_edit.rs:99 src/main.rs:1039
 msgid "EP"
 msgstr ""
 
-#: src/main.rs:1064
+#: src/dialogs/album_edit.rs:127
+msgid "Album type"
+msgstr ""
+
+#: src/main.rs:163
+msgid "About AlbumCard"
+msgstr ""
+
+#: src/main.rs:176
+msgid "Main Menu"
+msgstr ""
+
+#: src/main.rs:255
+msgid "Disk"
+msgstr ""
+
+#: src/main.rs:256
+msgid "Track"
+msgstr ""
+
+#: src/main.rs:257
+msgid "Void"
+msgstr ""
+
+#: src/main.rs:267
+msgid "Add Item"
+msgstr ""
+
+#: src/main.rs:322
+msgid "Load Album Art"
+msgstr ""
+
+#: src/main.rs:323
+msgid "Remove Album Art"
+msgstr ""
+
+#: src/main.rs:467
+msgid "Open audio file"
+msgstr ""
+
+#: src/main.rs:602
+msgid "translator-credits"
+msgstr ""
+
+#: src/main.rs:655
+msgid "Album saved successfully."
+msgstr ""
+
+#: src/main.rs:684
+msgid "Open Image"
+msgstr ""
+
+#: src/main.rs:715
+msgid "Delete album?"
+msgstr ""
+
+#: src/main.rs:718 src/main.rs:774 src/main.rs:948
+msgid "Cancel"
+msgstr ""
+
+#: src/main.rs:718 src/main.rs:1092
+msgid "Delete Album"
+msgstr ""
+
+#: src/main.rs:733
+msgid "Album deleted."
+msgstr ""
+
+#: src/main.rs:753
+msgid "Save the album before renaming its files."
+msgstr ""
+
+#: src/main.rs:758
+msgid "File names already match the pattern."
+msgstr ""
+
+#: src/main.rs:771
+msgid "Rename files?"
+msgstr ""
+
+#: src/main.rs:774
+msgid "Rename"
+msgstr ""
+
+#: src/main.rs:834
+msgid "Save the album before renaming its files"
+msgstr ""
+
+#: src/main.rs:836
+msgid "Rename files to match the pattern"
+msgstr ""
+
+#: src/main.rs:944
+msgid "Unsaved changes"
+msgstr ""
+
+#: src/main.rs:945
+msgid "Save changes to this album before continuing?"
+msgstr ""
+
+#: src/main.rs:949
+msgid "Discard"
+msgstr ""
+
+#: src/main.rs:972
+msgid "Album art taken from the new track."
+msgstr ""
+
+#: src/main.rs:1061
 msgid "Unknown date"
 msgstr ""
 
-#: src/main.rs:1138
+#: src/main.rs:1135
 msgid "Disc"
 msgstr ""

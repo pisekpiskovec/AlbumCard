@@ -43,3 +43,7 @@ build-flatpak:
     flatpak-builder --force-clean --disable-rofiles-fuse --user --install-deps-from=flathub --repo=repo --install builddir io.github.pisekpiskovec.AlbumCard.json
     xdg-desktop-menu forceupdate
     flatpak run io.github.pisekpiskovec.AlbumCard
+
+[linux]
+flowerpot:
+    find src -name '*.rs' -print0 | xargs -0 xgettext --language=Rust --from-code=UTF-8 --output=po/albumcard.pot
