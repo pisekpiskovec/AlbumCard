@@ -1,0 +1,243 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-10 00:46+0100\n"
+"PO-Revision-Date: 2026-11-10 00:48+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.10\n"
+
+#: src/dialogs/preferences.rs:38 src/main.rs:152
+msgid "Preferences"
+msgstr "Preferences"
+
+#: src/dialogs/preferences.rs:53
+msgid "Default Void size"
+msgstr "Default Void size"
+
+#: src/dialogs/preferences.rs:54
+msgid "Size give to a newly added Void"
+msgstr "Size to give a newly added Void"
+
+#: src/dialogs/preferences.rs:62 src/main.rs:220
+msgid "Albums"
+msgstr "Albums"
+
+#: src/dialogs/preferences.rs:67
+msgid "Tracks in a Single"
+msgstr "Tracks capacity in a Single"
+
+#: src/dialogs/preferences.rs:68
+msgid "How many tracks a Single may hold"
+msgstr "How many tracks a Single may hold"
+
+#: src/dialogs/preferences.rs:77
+msgid "Don't write track number for Singles"
+msgstr "Don't write track number to Singles"
+
+#: src/dialogs/preferences.rs:86
+msgid "Singles"
+msgstr "Singles"
+
+#: src/dialogs/preferences.rs:92
+msgid "Rename files on save"
+msgstr "Rename files on save"
+
+#: src/dialogs/preferences.rs:102
+msgid "Filename pattern used when renaming items in Singles"
+msgstr "Filename pattern used when renaming items in Singles"
+
+#: src/dialogs/preferences.rs:119
+msgid "Filename pattern used when renaming items in EPs"
+msgstr "Filename pattern used when renaming items in EPs"
+
+#: src/dialogs/preferences.rs:135
+msgid "File Renaming"
+msgstr "File Renaming"
+
+#: src/dialogs/track_edit.rs:53 src/dialogs/album_edit.rs:49
+msgid "Not set"
+msgstr "Not set"
+
+#: src/dialogs/track_edit.rs:68 src/dialogs/album_edit.rs:64
+msgid "Edit Track"
+msgstr "Edit Track"
+
+#: src/dialogs/track_edit.rs:83 src/dialogs/album_edit.rs:86 src/main.rs:950
+msgid "Save"
+msgstr "Save"
+
+#: src/dialogs/track_edit.rs:92
+msgid "New Track"
+msgstr "New Track"
+
+#: src/dialogs/track_edit.rs:93
+msgid "Add"
+msgstr "Add"
+
+#: src/dialogs/track_edit.rs:98
+msgid "Track Details"
+msgstr "Track Details"
+
+#: src/dialogs/track_edit.rs:101
+msgid "Sorting Details"
+msgstr "Sorting Details"
+
+#: src/dialogs/track_edit.rs:132
+msgid "File Path"
+msgstr "File Path"
+
+#: src/dialogs/track_edit.rs:149 src/dialogs/album_edit.rs:159
+msgid "Clear date"
+msgstr "Clear date"
+
+#: src/dialogs/track_edit.rs:181 src/dialogs/album_edit.rs:191
+msgid "Release date"
+msgstr "Release date"
+
+#: src/dialogs/track_edit.rs:182
+msgid "Blank to use album release date"
+msgstr "Leave blank to use album's release date"
+
+#: src/dialogs/album_edit.rs:74 src/main.rs:185
+msgid "New Album"
+msgstr "New Album"
+
+#: src/dialogs/album_edit.rs:75
+msgid "Edit Album"
+msgstr "Edit Album"
+
+#: src/dialogs/album_edit.rs:85
+msgid "Create"
+msgstr "Create"
+
+#: src/dialogs/album_edit.rs:98 src/main.rs:1038
+msgid "Single"
+msgstr "Single"
+
+#: src/dialogs/album_edit.rs:99 src/main.rs:1039
+msgid "EP"
+msgstr "EP"
+
+#: src/dialogs/album_edit.rs:127
+msgid "Album type"
+msgstr "Album type"
+
+#: src/main.rs:163
+msgid "About AlbumCard"
+msgstr "About AlbumCard"
+
+#: src/main.rs:176
+msgid "Main Menu"
+msgstr "Main Menu"
+
+#: src/main.rs:255
+msgid "Disk"
+msgstr "Disk"
+
+#: src/main.rs:256
+msgid "Track"
+msgstr "Track"
+
+#: src/main.rs:257
+msgid "Void"
+msgstr "Void"
+
+#: src/main.rs:267
+msgid "Add Item"
+msgstr "Add Item"
+
+#: src/main.rs:322
+msgid "Load Album Art"
+msgstr "Load Album Art"
+
+#: src/main.rs:323
+msgid "Remove Album Art"
+msgstr "Remove Album Art"
+
+#: src/main.rs:467
+msgid "Open audio file"
+msgstr "Open Audio"
+
+#: src/main.rs:602
+msgid "translator-credits"
+msgstr "Písek Pískovec <pisekpiskovec@gmail.com>"
+
+#: src/main.rs:655
+msgid "Album saved successfully."
+msgstr "Album saved successfully."
+
+#: src/main.rs:684
+msgid "Open Image"
+msgstr "Open Image"
+
+#: src/main.rs:715
+msgid "Delete album?"
+msgstr "Delete album?"
+
+#: src/main.rs:718 src/main.rs:774 src/main.rs:948
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/main.rs:718 src/main.rs:1092
+msgid "Delete Album"
+msgstr "Delete Album"
+
+#: src/main.rs:733
+msgid "Album deleted."
+msgstr "Album deleted."
+
+#: src/main.rs:753 src/main.rs:834
+msgid "Save the album before renaming its files."
+msgstr "Save the album before renaming its files."
+
+#: src/main.rs:758
+msgid "File names already match the pattern."
+msgstr "File names already match the pattern."
+
+#: src/main.rs:771
+msgid "Rename files?"
+msgstr "Rename files?"
+
+#: src/main.rs:774
+msgid "Rename"
+msgstr "Rename"
+
+#: src/main.rs:836
+msgid "Rename files to match the pattern"
+msgstr "Rename files to match the pattern"
+
+#: src/main.rs:944
+msgid "Unsaved changes"
+msgstr "Unsaved changes"
+
+#: src/main.rs:945
+msgid "Save changes to this album before continuing?"
+msgstr "Save changes to this album before continuing?"
+
+#: src/main.rs:949
+msgid "Discard"
+msgstr "Discard"
+
+#: src/main.rs:972
+msgid "Album art taken from the new track."
+msgstr "Album art taken from the new track."
+
+#: src/main.rs:1061
+msgid "Unknown date"
+msgstr "Unknown date"
+
+#: src/main.rs:1135
+msgid "Disc"
+msgstr "Disc"
