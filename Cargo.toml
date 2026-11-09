@@ -31,3 +31,4 @@ lofty = "0.25.4"
 chrono = { version = "0.4.45", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 toml = "0.8"
+gettext-rs = { version = "0.8.0", features = ["gettext-system"] }

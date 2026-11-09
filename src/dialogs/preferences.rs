@@ -1,4 +1,5 @@
 use adw::prelude::*;
+use gettextrs::gettext;
 use relm4::SimpleComponent;
 
 use crate::{config::Config, renaming::validate_pattern};
@@ -34,7 +35,7 @@ impl SimpleComponent for PreferencesDialog {
     type Widgets = ();
 
     fn init_root() -> Self::Root {
-        adw::PreferencesDialog::builder().title("Preferences").build()
+        adw::PreferencesDialog::builder().title(gettext("Preferences")).build()
     }
 
     fn init(
@@ -49,8 +50,8 @@ impl SimpleComponent for PreferencesDialog {
 
         // Albums
         let void_row = adw::SpinRow::with_range(1.0, 999.0, 1.0);
-        void_row.set_title("Default Void size");
-        void_row.set_subtitle("Size give to a newly added Void");
+        void_row.set_title(&gettext("Default Void size"));
+        void_row.set_subtitle(&gettext("Size give to a newly added Void"));
         void_row.set_value(config.default_void_size as f64);
         {
             let sender = sender.clone();
@@ -58,13 +59,13 @@ impl SimpleComponent for PreferencesDialog {
                 sender.input(PreferencesMsg::DefaultVoidSize(row.value() as u32));
             });
         }
-        let albums_group = adw::PreferencesGroup::builder().title("Albums").build();
+        let albums_group = adw::PreferencesGroup::builder().title(gettext("Albums")).build();
         albums_group.add(&void_row);
 
         // Singles
         let max_row = adw::SpinRow::with_range(1.0, 99.0, 1.0);
-        max_row.set_title("Tracks in a Single");
-        max_row.set_subtitle("How many tracks a Single may hold");
+        max_row.set_title(&gettext("Tracks in a Single"));
+        max_row.set_subtitle(&gettext("How many tracks a Single may hold"));
         max_row.set_value(config.max_count_of_tracks_in_single as f64);
         {
             let sender = sender.clone();
@@ -73,7 +74,7 @@ impl SimpleComponent for PreferencesDialog {
             });
         }
         let skip_row = adw::SwitchRow::builder()
-            .title("Don't write track number for Singles")
+            .title(gettext("Don't write track number for Singles"))
             .active(config.skip_saving_track_position_in_single)
             .build();
         {
@@ -82,13 +83,13 @@ impl SimpleComponent for PreferencesDialog {
                 sender.input(PreferencesMsg::SkipPositionInSingle(row.is_active()));
             });
         }
-        let singles_group = adw::PreferencesGroup::builder().title("Singles").build();
+        let singles_group = adw::PreferencesGroup::builder().title(gettext("Singles")).build();
         singles_group.add(&max_row);
         singles_group.add(&skip_row);
 
         // File renaming
         let rename_on_save_row = adw::SwitchRow::builder()
-            .title("Rename files on save")
+            .title(gettext("Rename files on save"))
             .active(config.rename_on_save)
             .build();
         {
@@ -98,7 +99,7 @@ impl SimpleComponent for PreferencesDialog {
             });
         }
         let single_pattern_row = adw::EntryRow::new();
-        single_pattern_row.set_title("Filename pattern used when renaming items in Singles");
+        single_pattern_row.set_title(&gettext("Filename pattern used when renaming items in Singles"));
         single_pattern_row.set_text(&config.rename_pattern_single);
         {
             let sender = sender.clone();
@@ -115,7 +116,7 @@ impl SimpleComponent for PreferencesDialog {
             });
         }
         let ep_pattern_row = adw::EntryRow::new();
-        ep_pattern_row.set_title("Filename pattern used when renaming items in EPs");
+        ep_pattern_row.set_title(&gettext("Filename pattern used when renaming items in EPs"));
         ep_pattern_row.set_text(&config.rename_pattern_ep);
         {
             let sender = sender.clone();
@@ -131,7 +132,7 @@ impl SimpleComponent for PreferencesDialog {
                 }
             });
         }
-        let rename_group = adw::PreferencesGroup::builder().title("File Renaming").build();
+        let rename_group = adw::PreferencesGroup::builder().title(gettext("File Renaming")).build();
         rename_group.add(&rename_on_save_row);
         rename_group.add(&single_pattern_row);
         rename_group.add(&ep_pattern_row);

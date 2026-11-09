@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
+use gettextrs::gettext;
 use relm4::prelude::*;
 
 use crate::models::{
@@ -43,10 +44,10 @@ pub struct AlbumEditWidgets {
     toast_overlay: adw::ToastOverlay,
 }
 
-fn release_date_label(value: &str) -> &str {
+fn release_date_label(value: &str) -> String {
     match value.is_empty() {
-        true => "Not set",
-        false => value,
+        true => gettext("Not set"),
+        false => value.to_string(),
     }
 }
 
@@ -60,7 +61,7 @@ impl Component for AlbumEditDialog {
 
     fn init_root() -> Self::Root {
         adw::Dialog::builder()
-            .title("Edit Track")
+            .title(gettext("Edit Track"))
             .content_height(560)
             .content_width(480)
             .build()
@@ -69,9 +70,9 @@ impl Component for AlbumEditDialog {
     fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let (purpose, edit, could_be_single) = init;
 
-        root.set_title(match purpose {
-            AlbumEditPurpose::New => "New Album",
-            AlbumEditPurpose::Edit => "Edit Album",
+        root.set_title(&match purpose {
+            AlbumEditPurpose::New => gettext("New Album"),
+            AlbumEditPurpose::Edit => gettext("Edit Album"),
         });
 
         {
@@ -80,9 +81,9 @@ impl Component for AlbumEditDialog {
         }
 
         let header = adw::HeaderBar::new();
-        let save_button = gtk::Button::with_label(match purpose {
-            AlbumEditPurpose::New => "Create",
-            AlbumEditPurpose::Edit => "Save",
+        let save_button = gtk::Button::with_label(&match purpose {
+            AlbumEditPurpose::New => gettext("Create"),
+            AlbumEditPurpose::Edit => gettext("Save"),
         });
         save_button.add_css_class("suggested-action");
         {
@@ -94,8 +95,8 @@ impl Component for AlbumEditDialog {
         let group = adw::PreferencesGroup::new();
 
         // Mode
-        let single_toggle = gtk::ToggleButton::builder().label("Single").build();
-        let ep_toggle = gtk::ToggleButton::builder().label("EP").build();
+        let single_toggle = gtk::ToggleButton::builder().label(gettext("Single")).build();
+        let ep_toggle = gtk::ToggleButton::builder().label(gettext("EP")).build();
         ep_toggle.set_group(Some(&single_toggle));
         match edit.mode {
             AlbumMode::Single => single_toggle.set_active(true),
@@ -123,7 +124,7 @@ impl Component for AlbumEditDialog {
             });
         }
         let mode_row = adw::ActionRow::builder()
-            .title("Album type")
+            .title(gettext("Album type"))
             .activatable_widget(&mode_box)
             .build();
         mode_row.add_suffix(&mode_box);
@@ -132,7 +133,7 @@ impl Component for AlbumEditDialog {
         macro_rules! entry_row {
             ($title:literal, $field:ident, $variant:ident) => {{
                 let row = adw::EntryRow::builder()
-                    .title($title)
+                    .title(gettext($title))
                     .text(edit.$field.as_str())
                     .build();
                 let sender = sender.clone();
@@ -155,7 +156,7 @@ impl Component for AlbumEditDialog {
             calendar.set_day(parsed.day() as i32);
         }
 
-        let clear_date_button = gtk::Button::with_label("Clear date");
+        let clear_date_button = gtk::Button::with_label(&gettext("Clear date"));
 
         let calendar_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
         calendar_popover_box.append(&calendar);
@@ -187,7 +188,7 @@ impl Component for AlbumEditDialog {
         }
 
         let release_date_row = adw::ActionRow::builder()
-            .title("Release date")
+            .title(gettext("Release date"))
             .activatable_widget(&release_date_button)
             .build();
         release_date_row.add_suffix(&release_date_button);
@@ -279,6 +280,6 @@ impl Component for AlbumEditDialog {
 
         widgets
             .release_date_button
-            .set_label(release_date_label(&self.edit.release_date));
+            .set_label(&release_date_label(&self.edit.release_date));
     }
 }

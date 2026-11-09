@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use adw::prelude::*;
 use chrono::{Datelike, NaiveDate};
+use gettextrs::gettext;
 use relm4::prelude::*;
 
 use crate::models::track::{Track, TrackEdit, TrackFieldError};
@@ -33,7 +34,8 @@ pub enum TrackEditOutput {
 
 #[derive(Debug)]
 pub enum TrackEditTarget {
-    Existing(usize), New(PathBuf),
+    Existing(usize),
+    New(PathBuf),
 }
 
 pub struct TrackEditDialog {
@@ -46,10 +48,10 @@ pub struct TrackEditWidgets {
     toast_overlay: adw::ToastOverlay,
 }
 
-fn release_date_label(value: &str) -> &str {
+fn release_date_label(value: &str) -> String {
     match value.is_empty() {
-        true => "Not set",
-        false => value,
+        true => gettext("Not set"),
+        false => value.to_string(),
     }
 }
 
@@ -63,7 +65,7 @@ impl Component for TrackEditDialog {
 
     fn init_root() -> Self::Root {
         adw::Dialog::builder()
-            .title("Edit Track")
+            .title(gettext("Edit Track"))
             .content_height(570)
             .content_width(480)
             .build()
@@ -78,7 +80,7 @@ impl Component for TrackEditDialog {
         }
 
         let header = adw::HeaderBar::new();
-        let save_button = gtk::Button::with_label("Save");
+        let save_button = gtk::Button::with_label(&gettext("Save"));
         save_button.add_css_class("suggested-action");
         {
             let sender = sender.clone();
@@ -87,21 +89,21 @@ impl Component for TrackEditDialog {
         header.pack_end(&save_button);
 
         if matches!(target, TrackEditTarget::New(_)) {
-            root.set_title("New Track");
-            save_button.set_label("Add");
+            root.set_title(&gettext("New Track"));
+            save_button.set_label(&gettext("Add"));
         }
 
         let group = adw::PreferencesPage::new();
         let details_group = adw::PreferencesGroup::new();
-        details_group.set_title("Track Details");
+        details_group.set_title(&gettext("Track Details"));
 
         let sorting_group = adw::PreferencesGroup::new();
-        sorting_group.set_title("Sorting Details");
+        sorting_group.set_title(&gettext("Sorting Details"));
 
         macro_rules! details_entry_row {
             ($title:literal, $field:ident, $variant:ident) => {{
                 let row = adw::EntryRow::builder()
-                    .title($title)
+                    .title(gettext($title))
                     .text(edit.$field.as_str())
                     .build();
                 let sender = sender.clone();
@@ -115,7 +117,7 @@ impl Component for TrackEditDialog {
         macro_rules! sorting_entry_row {
             ($title:literal, $field:ident, $variant:ident) => {{
                 let row = adw::EntryRow::builder()
-                    .title($title)
+                    .title(gettext($title))
                     .text(edit.$field.as_str())
                     .build();
                 let sender = sender.clone();
@@ -127,7 +129,7 @@ impl Component for TrackEditDialog {
         }
 
         let path_row = adw::ActionRow::builder()
-            .title("File Path")
+            .title(gettext("File Path"))
             .subtitle_selectable(true)
             .subtitle(edit.file_path.to_str().expect("Valid path"))
             .css_classes(vec!["property"])
@@ -144,7 +146,7 @@ impl Component for TrackEditDialog {
             calendar.set_day(parsed.day() as i32);
         }
 
-        let clear_date_button = gtk::Button::with_label("Clear date");
+        let clear_date_button = gtk::Button::with_label(&gettext("Clear date"));
 
         let calendar_popover_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
         calendar_popover_box.append(&calendar);
@@ -176,8 +178,8 @@ impl Component for TrackEditDialog {
         }
 
         let release_date_row = adw::ActionRow::builder()
-            .title("Release date")
-            .subtitle("Blank to use album release date")
+            .title(gettext("Release date"))
+            .subtitle(gettext("Blank to use album release date"))
             .activatable_widget(&release_date_button)
             .build();
         release_date_row.add_suffix(&release_date_button);
@@ -280,6 +282,6 @@ impl Component for TrackEditDialog {
 
         widgets
             .release_date_button
-            .set_label(release_date_label(&self.edit.release_date));
+            .set_label(&release_date_label(&self.edit.release_date));
     }
 }

@@ -1,5 +1,6 @@
 mod config;
 mod dialogs;
+mod i18n;
 mod models;
 mod renaming;
 mod storage;
@@ -11,6 +12,7 @@ use std::path::PathBuf;
 
 use adw::prelude::*;
 use chrono::Datelike;
+use gettextrs::gettext;
 use gtk::gdk::BUTTON_SECONDARY;
 use gtk::{FileDialog, FileFilter};
 use relm4::prelude::*;
@@ -146,7 +148,9 @@ impl SimpleComponent for AppModel {
 
         // Sidebar pane
         let ham_menu = gtk::gio::Menu::new();
-        ham_menu.append(Some("Preferences"), Some("app.preferences"));
+
+        ham_menu.append(Some(&gettext("Preferences")), Some("app.preferences"));
+
         let action_preferences = gtk::gio::SimpleAction::new("preferences", None);
         {
             let sender = sender.clone();
@@ -156,7 +160,7 @@ impl SimpleComponent for AppModel {
         }
         relm4::main_application().add_action(&action_preferences);
         relm4::main_application().set_accels_for_action("app.preferences", &["<Primary>comma"]);
-        ham_menu.append(Some("About AlbumCard"), Some("app.about"));
+        ham_menu.append(Some(&gettext("About AlbumCard")), Some("app.about"));
         let action_about = gtk::gio::SimpleAction::new("about", None);
         {
             let sender = sender.clone();
@@ -169,7 +173,7 @@ impl SimpleComponent for AppModel {
             .icon_name("open-menu-symbolic")
             .menu_model(&ham_menu)
             .primary(true)
-            .tooltip_text("Main Menu")
+            .tooltip_text(gettext("Main Menu"))
             .build();
 
         let sidebar_header = adw::HeaderBar::new();
@@ -178,7 +182,7 @@ impl SimpleComponent for AppModel {
 
         let new_album_content = adw::ButtonContent::builder()
             .icon_name("list-add-symbolic")
-            .label("New Album")
+            .label(gettext("New Album"))
             .build();
         let new_album_button = gtk::Button::builder().child(&new_album_content).build();
         new_album_button.add_css_class("suggested-action");
@@ -213,7 +217,7 @@ impl SimpleComponent for AppModel {
         let sidebar_toolbar = adw::ToolbarView::new();
         sidebar_toolbar.add_top_bar(&sidebar_header);
         sidebar_toolbar.set_content(Some(&sidebar_content_box));
-        let sidebar_page = adw::NavigationPage::new(&sidebar_toolbar, "Albums");
+        let sidebar_page = adw::NavigationPage::new(&sidebar_toolbar, &gettext("Albums"));
 
         // Content pane
         let content_header = adw::HeaderBar::new();
@@ -248,9 +252,9 @@ impl SimpleComponent for AppModel {
         let add_track_action = make_action("add-track", AlbumItemType::Track);
         let add_void_action = make_action("add-void", AlbumItemType::Void);
 
-        add_menu.append(Some("Disk"), Some("app.add-disk"));
-        add_menu.append(Some("Track"), Some("app.add-track"));
-        add_menu.append(Some("Void"), Some("app.add-void"));
+        add_menu.append(Some(&gettext("Disk")), Some("app.add-disk"));
+        add_menu.append(Some(&gettext("Track")), Some("app.add-track"));
+        add_menu.append(Some(&gettext("Void")), Some("app.add-void"));
 
         let allowed = album.allowed_item_types();
         add_disk_action.set_enabled(allowed.contains(&AlbumItemType::Disk));
@@ -260,7 +264,7 @@ impl SimpleComponent for AppModel {
         let add_button = adw::SplitButton::builder()
             .icon_name("list-add-symbolic")
             .menu_model(&add_menu)
-            .tooltip_text("Add Item")
+            .tooltip_text(gettext("Add Item"))
             .build();
         {
             let sender = sender.clone();
@@ -315,8 +319,8 @@ impl SimpleComponent for AppModel {
             relm4::main_application().add_action(&del_art_action);
         }
         del_art_action.set_enabled(false);
-        art_menu.append(Some("Load Album Art"), Some("app.add-art"));
-        art_menu.append(Some("Remove Album Art"), Some("app.del-art"));
+        art_menu.append(Some(&gettext("Load Album Art")), Some("app.add-art"));
+        art_menu.append(Some(&gettext("Remove Album Art")), Some("app.del-art"));
 
         let art_frame = gtk::Frame::builder()
             .width_request(96)
@@ -448,14 +452,10 @@ impl SimpleComponent for AppModel {
                     if self.album.mode == AlbumMode::Single
                         && self.album.get_items().len() >= self.config.max_count_of_tracks_in_single as usize
                     {
-                        self.toast_overlay.add_toast(
-                            adw::Toast::builder()
-                                .title(format!(
-                                    "Single cannot hold more than {} Track.",
-                                    self.config.max_count_of_tracks_in_single
-                                ))
-                                .build(),
-                        );
+                        self.toast(&format!(
+                            "Single cannot hold more than {} Track(s).",
+                            self.config.max_count_of_tracks_in_single
+                        ));
                         return;
                     }
 
@@ -464,7 +464,7 @@ impl SimpleComponent for AppModel {
                     filter.add_mime_type("audio/mp3");
                     filter.set_name(Some("MP3"));
                     let dialog = FileDialog::builder()
-                        .title("Open audio file")
+                        .title(gettext("Open audio file"))
                         .default_filter(&filter)
                         .build();
                     if let Some(audio_dir) = dirs::audio_dir() {
@@ -567,7 +567,7 @@ impl SimpleComponent for AppModel {
                                 self.art_from_track(&path);
                             } else {
                                 self.toast(&format!(
-                                    "Single cannot hold more than {} Track.",
+                                    "Single cannot hold more than {} Track(s).",
                                     self.config.max_count_of_tracks_in_single
                                 ));
                             }
@@ -599,7 +599,7 @@ impl SimpleComponent for AppModel {
                     .version(format!("{}.{}", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR")))
                     .developers(vec!["Písek Pískovec"])
                     .artists(vec!["Písek Pískovec"])
-                    // .translator_credits(vec![])
+                    .translator_credits(gettext("translator-credits"))
                     .comments(format!("{}\nNext generation of audio taggers", config::CODENAME))
                     .website("https://github.com/PisekPiskovec/AlbumCard")
                     .issue_url("https://github.com/PisekPiskovec/AlbumCard/issues")
@@ -652,7 +652,7 @@ impl SimpleComponent for AppModel {
                     return;
                 }
                 if self.save_everything() {
-                    self.toast("Album saved successfully.");
+                    self.toast(&gettext("Album saved successfully."));
                 }
             }
             AppMsg::TrackFileChosen(path) => {
@@ -680,7 +680,10 @@ impl SimpleComponent for AppModel {
             AppMsg::LoadImageRequest => {
                 let filter = FileFilter::new();
                 filter.add_mime_types(&["image/png", "image/jpeg", "image/webp"]);
-                let dialog = FileDialog::builder().title("Open").default_filter(&filter).build();
+                let dialog = FileDialog::builder()
+                    .title(gettext("Open Image"))
+                    .default_filter(&filter)
+                    .build();
                 if let Some(picture_dir) = dirs::picture_dir() {
                     dialog.set_initial_folder(Some(&gtk::gio::File::for_path(picture_dir)));
                 }
@@ -709,10 +712,10 @@ impl SimpleComponent for AppModel {
                     .map(|(_, t)| t.as_str())
                     .unwrap_or("This album");
                 let dialog = adw::AlertDialog::builder()
-                    .heading("Delete album?")
+                    .heading(gettext("Delete album?"))
                     .body(format!("\"{name}\" will be removed from AlbumCard. Your audio files are not touched. This can't be undone."))
                     .build();
-                dialog.add_responses(&[("cancel", "Cancel"), ("delete", "Delete Album")]);
+                dialog.add_responses(&[("cancel", &gettext("Cancel")), ("delete", &gettext("Delete Album"))]);
                 dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
                 dialog.set_default_response(Some("cancel"));
                 dialog.set_close_response("cancel");
@@ -727,7 +730,7 @@ impl SimpleComponent for AppModel {
                         self.saved_json = self.album.to_json().expect("serialization should succeed.");
                     }
                     self.sidebar_albums = storage::list_albums();
-                    self.toast("Album deleted.");
+                    self.toast(&gettext("Album deleted."));
                 }
                 Err(e) => self.toast(&format!("Couldn't delete the album: {e}")),
             },
@@ -747,12 +750,12 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::RenameRequest => {
                 if self.is_dirty() {
-                    self.toast("Save the album before renaming its files.");
+                    self.toast(&gettext("Save the album before renaming its files."));
                     return;
                 }
                 match self.rename_plan() {
                     Err(errors) => self.toast(&Self::firts_problem(&errors)),
-                    Ok(plan) if plan.is_empty() => self.toast("File names alreafy match the pattern."),
+                    Ok(plan) if plan.is_empty() => self.toast(&gettext("File names already match the pattern.")),
                     Ok(plan) => {
                         let name =
                             |p: &std::path::Path| p.file_name().and_then(|n| n.to_str()).unwrap_or("?").to_string();
@@ -765,10 +768,10 @@ impl SimpleComponent for AppModel {
                             lines.push(format!("...and {} more", plan.len() - 8));
                         }
                         let dialog = adw::AlertDialog::builder()
-                            .heading("Rename files?")
+                            .heading(gettext("Rename files?"))
                             .body(lines.join("\n"))
                             .build();
-                        dialog.add_responses(&[("cancel", "Cancel"), ("rename", "Rename")]);
+                        dialog.add_responses(&[("cancel", &gettext("Cancel")), ("rename", &gettext("Rename"))]);
                         dialog.set_response_appearance("rename", adw::ResponseAppearance::Suggested);
                         dialog.set_close_response("cancel");
                         let sender = sender.clone();
@@ -827,10 +830,10 @@ impl SimpleComponent for AppModel {
         let dirty = self.is_dirty();
 
         widgets.rename_button.set_sensitive(has_tracks && !dirty);
-        widgets.rename_button.set_tooltip_text(Some(if dirty {
-            "Save the album before renaming its files"
+        widgets.rename_button.set_tooltip_text(Some(&if dirty {
+            gettext("Save the album before renaming its files")
         } else {
-            "Rename files to match the pattern"
+            gettext("Rename files to match the pattern")
         }));
 
         if dirty {
@@ -938,10 +941,14 @@ impl AppModel {
         }
         self.pending = Some(target);
         let dialog = adw::AlertDialog::builder()
-            .heading("Unsaved changes")
-            .body("Save changes to this album before continuing?")
+            .heading(gettext("Unsaved changes"))
+            .body(gettext("Save changes to this album before continuing?"))
             .build();
-        dialog.add_responses(&[("cancel", "Cancel"), ("discard", "Discard"), ("save", "Save")]);
+        dialog.add_responses(&[
+            ("cancel", &gettext("Cancel")),
+            ("discard", &gettext("Discard")),
+            ("save", &gettext("Save")),
+        ]);
         dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
         dialog.set_response_appearance("save", adw::ResponseAppearance::Suggested);
         dialog.set_default_response(Some("save"));
@@ -962,7 +969,7 @@ impl AppModel {
         match tags::extract_cover(audio, &dir, &self.album.id.to_string()) {
             Ok(Some(path)) => {
                 self.album.art_path = Some(path);
-                self.toast("Album art taken from the new track.");
+                self.toast(&gettext("Album art taken from the new track."));
             }
             Ok(None) => {}
             Err(e) => self.toast(&format!("Couldn't read the cover: {e}")),
@@ -1028,8 +1035,8 @@ impl AppModel {
 
 fn format_album_meta(album: &Album) -> String {
     let type_str = match album.mode {
-        AlbumMode::Single => "Single",
-        AlbumMode::Ep => "EP",
+        AlbumMode::Single => &gettext("Single"),
+        AlbumMode::Ep => &gettext("EP"),
     };
 
     let mut parts = vec![type_str.to_string()];
@@ -1051,7 +1058,7 @@ fn format_album_meta(album: &Album) -> String {
     let date_str = album
         .release_date
         .map(|d| d.format("%b %e, %Y").to_string())
-        .unwrap_or_else(|| "Unknown date".to_string());
+        .unwrap_or_else(|| gettext("Unknown date"));
     parts.push(date_str);
 
     parts.push(album.genre.clone());
@@ -1082,7 +1089,7 @@ fn populate_sidebar(
         }
 
         let album_menu = gtk::gio::Menu::new();
-        let delete_item = gtk::gio::MenuItem::new(Some("Delete Album"), None);
+        let delete_item = gtk::gio::MenuItem::new(Some(&gettext("Delete Album")), None);
         delete_item.set_action_and_target_value(Some("app.del-album"), Some(&id.to_string().to_variant()));
         album_menu.append_item(&delete_item);
 
@@ -1125,7 +1132,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
                 let disk_label = match album.disk_number_at(idx) {
                     Some(n) => format!("Disc {n}"),
-                    None => "Disc".to_string(), // fallback that should not happen
+                    None => gettext("Disc"), // fallback that should not happen
                 };
                 let label = gtk::Label::builder()
                     .label(disk_label)
@@ -1264,6 +1271,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
 }
 
 fn main() {
+    i18n::init();
     let app = RelmApp::new("io.github.pisekpiskovec.AlbumCard");
     app.run::<AppModel>(());
 }
