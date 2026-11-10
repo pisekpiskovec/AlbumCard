@@ -66,6 +66,19 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="2.0.0" date="2026-11-13">
+      <description translate="no">
+        <p>Cutie Mew Mew Magic (by Toby Fox)</p>
+
+        <ul>
+          <li>Added support for multiple values</li>
+          <li>Added config</li>
+          <li>Added file renaming based on patterns</li>
+          <li>Added translaton system and English and Czech translations</li>
+          <li>Sped up tag writing by making the process run in parallel</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0" date="2026-10-28">
       <description translate="no">
         <p>R.I.P. (by ReoNa)</p>
