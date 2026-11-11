@@ -53,6 +53,9 @@ struct AppModel {
     saved_json: String,
     pending: Option<Pending>,
     config: config::Config,
+    saving: bool,
+    save_progress: (usize, usize),
+    after_save: Option<Pending>,
 }
 
 #[derive(Debug)]
@@ -81,6 +84,8 @@ enum AppMsg {
     PreferencesResult(PreferencesOutput),
     RenameRequest,
     RenameConfirmed,
+    SaveProgress(usize, usize),
+    SaveFinished(Result<tags::WriteSummary, String>),
 }
 
 struct AppWidgets {
@@ -97,6 +102,8 @@ struct AppWidgets {
     save_button: gtk::Button,
     del_art_action: gtk::gio::SimpleAction,
     rename_button: gtk::Button,
+    save_banner: adw::Banner,
+    lock_widgets: Vec<gtk::Widget>,
 }
 
 impl SimpleComponent for AppModel {
@@ -392,6 +399,16 @@ impl SimpleComponent for AppModel {
         let content_toolbar = adw::ToolbarView::new();
         content_toolbar.add_top_bar(&content_header);
 
+        let save_banner = adw::Banner::builder().title(gettext("Saving...")).build();
+        content_toolbar.add_top_bar(&save_banner);
+        let lock_widgets: Vec<gtk::Widget> = vec![
+            sidebar_content_box.clone().upcast(),
+            content_box.clone().upcast(),
+            add_button.clone().upcast(),
+            edit_album_button.clone().upcast(),
+            save_button.clone().upcast(),
+        ];
+
         let toast_overlay = adw::ToastOverlay::new();
         toast_overlay.set_child(Some(&content_box));
         content_toolbar.set_content(Some(&toast_overlay));
@@ -421,6 +438,9 @@ impl SimpleComponent for AppModel {
             pending: None,
             config,
             preferences_dialog: None,
+            saving: false,
+            save_progress: (0, 0),
+            after_save: None,
         };
         let widgets = AppWidgets {
             split_view,
@@ -436,6 +456,8 @@ impl SimpleComponent for AppModel {
             save_button,
             del_art_action,
             rename_button,
+            save_banner,
+            lock_widgets,
         };
 
         ComponentParts { model, widgets }
@@ -629,8 +651,8 @@ impl SimpleComponent for AppModel {
                 let Some(target) = self.pending.take() else {
                     return;
                 };
-                let go = match response.as_str() {
-                    "save" => self.save_everything(),
+                match response.as_str() {
+                    "save" => self.begin_save(Some(target), &sender),
                     "discard" => {
                         match storage::load_album(self.album.id) {
                             Ok(saved) => {
@@ -639,20 +661,39 @@ impl SimpleComponent for AppModel {
                             }
                             Err(e) => self.toast(&format!("Couldn't restore the saved album: {e}")),
                         }
-                        true
+                        self.proceed(target, &sender);
                     }
-                    _ => false,
-                };
-                if go {
-                    self.proceed(target, &sender);
+                    _ => {},
                 }
             }
             AppMsg::SaveAlbum => {
-                if !self.is_dirty() {
+                if self.saving || !self.is_dirty() {
                     return;
                 }
-                if self.save_everything() {
-                    self.toast(&gettext("Album saved successfully."));
+                self.begin_save(None, &sender);
+            }
+            AppMsg::SaveProgress(done, total) => self.save_progress = (done, total),
+            AppMsg::SaveFinished(result) => {
+                self.saving = false;
+                let next = self.after_save.take();
+                match result {
+                    Ok(summary) => {
+                        if self.finish_save(&summary) {
+                            match next {
+                                Some(target) => self.proceed(target, &sender),
+                                None => {
+                                    let skipped = summary.skipped_count();
+                                    let note = if skipped > 0 {
+                                        format!(" {skipped} of {} files were alreafy up to date.", summary.reports.len())
+                                    } else {
+                                        String::new()
+                                    };
+                                    self.toast(&format!("Album saved successfully.{note}"));
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => self.toast(&format!("Saving failed: {e}")),
                 }
             }
             AppMsg::TrackFileChosen(path) => {
@@ -701,7 +742,12 @@ impl SimpleComponent for AppModel {
             }
             AppMsg::CloseRequest => {
                 self.config.save().ok();
-                self.leave(Pending::Quit, &sender);
+                if self.saving {
+                    self.after_save = Some(Pending::Quit);
+                    self.toast(&gettext("Closing as soon as saving finishes."));
+                } else {
+                    self.leave(Pending::Quit, &sender);
+                }
             }
             AppMsg::ClearAlbumArt => self.album.art_path = None,
             AppMsg::DeleteAlbumRequest(id) => {
@@ -829,7 +875,7 @@ impl SimpleComponent for AppModel {
         let has_tracks = self.album.get_items().iter().any(|i| matches!(i, AlbumItem::Track(_)));
         let dirty = self.is_dirty();
 
-        widgets.rename_button.set_sensitive(has_tracks && !dirty);
+        widgets.rename_button.set_sensitive(has_tracks && !dirty && !self.saving);
         widgets.rename_button.set_tooltip_text(Some(&if dirty {
             gettext("Save the album before renaming its files.")
         } else {
@@ -844,6 +890,15 @@ impl SimpleComponent for AppModel {
 
         widgets.del_art_action.set_enabled(self.album.art_path.is_some());
 
+        // Locking
+        for w in &widgets.lock_widgets {
+            w.set_sensitive(!self.saving);
+        }
+        widgets.save_banner.set_revealed(self.saving);
+        if self.saving {
+            widgets.save_banner.set_title(&format!("Saving tags... {} of {}", self.save_progress.0, self.save_progress.1));
+        }
+
         let _ = &widgets.split_view;
     }
 }
@@ -857,20 +912,42 @@ impl AppModel {
         self.toast_overlay.add_toast(adw::Toast::new(msg));
     }
 
-    fn save_everything(&mut self) -> bool {
+    /// Starts writing in the background. `then` runs once the save has succeeded.
+    fn begin_save(&mut self, then: Option<Pending>, sender: &ComponentSender<Self>) {
+        if self.saving {
+            return;
+        }
         if let Err(p) = self.album.validate_for_save() {
             self.toast(&p[0]);
-            return false;
+            return;
         }
         if let Err(e) = storage::save_album(&self.album) {
             self.toast(&format!("Save failed: {e}"));
-            return false;
+            return;
         }
 
-        let summary = tags::write_album_tags(
-            &self.album,
-            !(self.album.mode == AlbumMode::Single && self.config.skip_saving_track_position_in_single),
-        );
+        let album = self.album.clone();
+        let save_position = !(album.mode == AlbumMode::Single && self.config.skip_saving_track_position_in_single);
+        self.saving = true;
+        self.after_save = then;
+        self.save_progress = (0, album.get_items().iter().filter(|i| matches!(i, AlbumItem::Track(_))).count());
+
+        let input = sender.input_sender().clone();
+        std::thread::spawn(move || {
+            let progress = std::sync::Mutex::new(input.clone());
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                tags::write_album_tags(&album, save_position, &|done, total| {
+                    progress.lock().unwrap().emit(AppMsg::SaveProgress(done, total));
+                })
+            }));
+            input.emit(AppMsg::SaveFinished(
+                result.map_err(|_| gettext("the tag writer stopped unexpectedly")),
+            ));
+        });
+    }
+
+    /// Everything that happens after the files are written. Returns whether the save went fine.
+    fn finish_save(&mut self, summary: &tags::WriteSummary) -> bool {
         if let Some(art) = &summary.art_error {
             self.toast(&format!("Cover not embedded: {art}"));
         }
@@ -880,20 +957,17 @@ impl AppModel {
                 "{} failed: {}{}",
                 bad.path.display(),
                 bad.result.as_ref().unwrap_err(),
-                if n > 1 {
-                    format!(" (+{} more)", n - 1)
-                } else {
-                    String::new()
-                }
+                if n > 1 { format!(" (+{} more)", n-1) } else { String::new() }
             ));
         }
+        let ok = summary.failures().next().is_none();
 
-        if self.config.rename_on_save && summary.failures().next().is_none() {
+        if self.config.rename_on_save && ok {
             match self.rename_files() {
                 Ok(0) => {}
                 Ok(_) => {
                     if let Err(e) = storage::save_album(&self.album) {
-                        self.toast(&format!("Files renamed, but the album couldn't be saved: {e}."));
+                        self.toast(&format!("Files renamed, but the album couldn't be saved: {e}"));
                         return false;
                     }
                 }
@@ -903,7 +977,7 @@ impl AppModel {
 
         self.saved_json = self.album.to_json().unwrap_or_default();
         self.sidebar_albums = storage::list_albums();
-        summary.failures().next().is_none()
+        ok
     }
 
     fn proceed(&mut self, target: Pending, sender: &ComponentSender<Self>) {

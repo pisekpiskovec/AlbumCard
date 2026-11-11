@@ -698,6 +698,15 @@ pub fn write_album_tags(album: &Album, save_position: bool, progress: &(dyn Fn(u
     summary
 }
 
+pub fn split_values(value: &str) -> Vec<String> {
+    value
+        .split(&[';', '|', '\0'])
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
 fn connect_values(value: &str) -> String {
     value
         .split(&[';', '|'])
