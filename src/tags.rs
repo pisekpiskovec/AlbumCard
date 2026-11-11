@@ -1,6 +1,11 @@
 use std::{
+    collections::{BTreeMap, HashMap},
     fs::File,
     path::{Path, PathBuf},
+    sync::{
+        Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 pub type TagError = Box<dyn std::error::Error + Send + Sync>;
@@ -27,16 +32,16 @@ use lofty::{
     ogg::{OpusFile, VorbisFile},
     picture::{Picture, PictureType},
     probe::Probe,
-    tag::{Accessor, ItemKey, Tag},
+    tag::{Accessor, ItemKey, ItemValue, Tag},
 };
 
 use crate::models::{
-    album::{Album, AlbumItem, AlbumItemPosition, AlbumMode},
+    album::{Album, AlbumItem, AlbumItemPosition},
     track::TrackEdit,
 };
 
 fn parse_opts() -> ParseOptions {
-    ParseOptions::new().max_junk_bytes(1 << 20)
+    ParseOptions::new().max_junk_bytes(1 << 20).read_properties(false)
 }
 
 fn write_opts() -> WriteOptions {
@@ -134,12 +139,22 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
         }
     };
 
+    let split_trim_join = |value: &str| {
+        value
+            .split(&[',', ';', '/', '+', '\0'])
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+            .map(|r| r.to_string())
+            .collect::<Vec<_>>()
+            .join(";")
+    };
+
     let multi = |key: ItemKey| {
         let v = all_values(tag, key);
         if v.is_empty() {
             custom_name(key)
                 .and_then(|n| read_custom(path, n))
-                .map(|s| split_values(&s).join(";"))
+                .map(|s| split_trim_join(&s))
                 .unwrap_or_default()
         } else {
             v
@@ -162,8 +177,8 @@ pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Re
     Ok(TrackEdit {
         file_path: path.to_path_buf(),
         title,
-        artist: inherit(all_values(tag, ItemKey::TrackArtist), &split_values(album_artist).join(";")),
-        genre: inherit(all_values(tag, ItemKey::Genre), &split_values(album_genre).join(";")),
+        artist: inherit(all_values(tag, ItemKey::TrackArtist), &split_trim_join(album_artist)),
+        genre: inherit(all_values(tag, ItemKey::Genre), &split_trim_join(album_genre)),
         release_date,
         performer: multi(ItemKey::Performer),
         composer: multi(ItemKey::Composer),
@@ -189,6 +204,8 @@ pub struct WriteReport {
     ///
     /// Empty for the common formats.
     pub unsupported: Vec<&'static str>,
+    /// The file already contained exactly these tags, so it was not touched.
+    pub skipped: bool,
 }
 
 #[derive(Debug, Default)]
@@ -203,10 +220,18 @@ impl WriteSummary {
     pub fn failures(&self) -> impl Iterator<Item = &WriteReport> {
         self.reports.iter().filter(|r| r.result.is_err())
     }
+
+    /// Files that were already up to date and therefore left alone.
+    pub fn skipped_count(&self) -> usize {
+        self.reports.iter().filter(|r| r.skipped).count()
+    }
 }
 
 /// Sets (`Some`) or removes (`None`) a custom field in the file.
 /// Returns `Ok(false)` if this format has no place to store it.
+///
+/// Deprecated: Use `write_customs` instead
+#[deprecated]
 fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, TagError> {
     let mut file = File::options().read(true).write(true).open(path)?;
     let parse_options = parse_opts();
@@ -269,6 +294,108 @@ fn write_custom(path: &Path, name: &str, value: Option<&str>) -> Result<bool, Ta
     Ok(true)
 }
 
+/// Sets (`Some`) or removes (`None`) custom fields in the file, in one read and one write.
+/// Returns `Ok(false)` if this format has no place to store them.
+fn write_customs(path: &Path, items: &[(&str, Option<&str>)]) -> Result<bool, TagError> {
+    if items.is_empty() {
+        return Ok(true);
+    }
+    let wants_value = items.iter().any(|(_, v)| v.is_some());
+    let mut file = File::options().read(true).write(true).open(path)?;
+    match FileType::from_path(path) {
+        Some(FileType::Mpeg) => {
+            let mut f = MpegFile::read_from(&mut file, parse_opts()).map_err(err)?;
+            let Some(tag) = f.id3v2_mut() else {
+                return Ok(!wants_value);
+            };
+            for (name, value) in items {
+                tag.remove_user_text(name);
+                if let Some(v) = value {
+                    tag.insert_user_text(name.to_string(), v.to_string());
+                }
+            }
+            f.save_to_path(path, write_opts()).map_err(err)?;
+        }
+        Some(FileType::Mp4) => {
+            let mut f = Mp4File::read_from(&mut file, parse_opts()).map_err(err)?;
+            let Some(ilst) = f.ilst_mut() else {
+                return Ok(!wants_value);
+            };
+            for (name, value) in items {
+                let ident = mp4_ident(name);
+                drop(ilst.remove(&ident));
+                if let Some(v) = value {
+                    ilst.replace_atom(Atom::new(ident, AtomData::UTF8(v.to_string())));
+                }
+            }
+            f.save_to_path(path, write_opts()).map_err(err)?;
+        }
+        Some(FileType::Flac) => {
+            let mut f = FlacFile::read_from(&mut file, parse_opts()).map_err(err)?;
+            let Some(vc) = f.vorbis_comments_mut() else {
+                return Ok(!wants_value);
+            };
+            for (name, value) in items {
+                drop(vc.remove(name));
+                if let Some(v) = value {
+                    vc.push(name.to_string(), v.to_string());
+                }
+            }
+            f.save_to_path(path, write_opts()).map_err(err)?;
+        }
+        Some(FileType::Vorbis) => {
+            let mut f = VorbisFile::read_from(&mut file, parse_opts()).map_err(err)?;
+            let vc = f.vorbis_comments_mut();
+            for (name, value) in items {
+                drop(vc.remove(name));
+                if let Some(v) = value {
+                    vc.push(name.to_string(), v.to_string());
+                }
+            }
+            f.save_to_path(path, write_opts()).map_err(err)?;
+        }
+        Some(FileType::Opus) => {
+            let mut f = OpusFile::read_from(&mut file, parse_opts()).map_err(err)?;
+            let vc = f.vorbis_comments_mut();
+            for (name, value) in items {
+                drop(vc.remove(name));
+                if let Some(v) = value {
+                    vc.push(name.to_string(), v.to_string());
+                }
+            }
+            f.save_to_path(path, write_opts()).map_err(err)?;
+        }
+        _ => return Ok(!wants_value),
+    }
+    Ok(true)
+}
+
+/// A tag reduced to what matters for "would saving change anything?":
+/// text values per key (multi-values split, order kept) and the pictures.
+/// Item order inside the tag is ignored, since rewriting a field moves it.
+type Fingerprint = (BTreeMap<String, Vec<String>>, Vec<(String, Vec<u8>)>);
+
+fn fingerprint(tag: &Tag) -> Fingerprint {
+    let mut items: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for item in tag.items() {
+        let entry = items.entry(format!("{:?}", item.key())).or_default();
+        match item.value() {
+            ItemValue::Text(t) | ItemValue::Locator(t) => {
+                entry.extend(t.split('\0').filter(|s| !s.is_empty()).map(str::to_string));
+            }
+            other => entry.push(format!("{other:?}")),
+        }
+    }
+    items.retain(|_, values| !values.is_empty());
+    let mut pictures: Vec<_> = tag
+        .pictures()
+        .iter()
+        .map(|p| (format!("{:?}", p.pic_type()), p.data().to_vec()))
+        .collect();
+    pictures.sort();
+    (items, pictures)
+}
+
 /// Sets `key` to `value`, or removes it when `value` is `None` - so clearing a field
 /// also clears it in the file instead of leaving stale data.
 /// Returns `false` only if a value could not be stored in this format at all.
@@ -294,7 +421,7 @@ fn write_track_inner(
     picture: Option<&Picture>,
     unsupported: &mut Vec<&'static str>,
     write_position: bool,
-) -> Result<(), TagError> {
+) -> Result<bool, TagError> {
     let path = &track.file_path;
     let mut tagged = Probe::open(path)
         .map_err(err)?
@@ -310,6 +437,8 @@ fn write_track_inner(
     let tag = tagged
         .primary_tag_mut()
         .expect("a tag wa inserted just above if none existed");
+
+    let before = fingerprint(tag);
 
     tag.set_title(track.title.clone());
     tag.set_artist(connect_values(track.effective_artist(album)));
@@ -379,14 +508,28 @@ fn write_track_inner(
         None => {}
     }
 
-    tagged.save_to_path(path, write_opts()).map_err(err)?;
+    let generic_changed = fingerprint(tag) != before;
 
-    for (label, cn, value) in custom {
-        if !write_custom(path, cn, value.as_deref())? {
-            unsupported.push(label);
-        }
+    // Custom fields live outside the generic tag. Only the ones that differ from
+    // what the file already holds need a write.
+    let custom: Vec<_> = custom
+        .into_iter()
+        .filter(|(_, cn, value)| read_custom(path, cn).as_deref() != value.as_deref())
+        .collect();
+
+    if !generic_changed && custom.is_empty() {
+        return Ok(true);
     }
-    Ok(())
+
+    if generic_changed {
+        tagged.save_to_path(path, write_opts()).map_err(err)?;
+    }
+
+    let items: Vec<(&str, Option<&str>)> = custom.iter().map(|(_, cn, v)| (*cn, v.as_deref())).collect();
+    if !write_customs(path, &items)? {
+        unsupported.extend(custom.iter().map(|(label, _, _)| *label));
+    }
+    Ok(false)
 }
 
 fn write_track(
@@ -395,7 +538,7 @@ fn write_track(
     position: Option<AlbumItemPosition>,
     picture: Option<&Picture>,
     write_position: bool,
-) -> (Result<(), TagError>, Vec<&'static str>) {
+) -> (Result<bool, TagError>, Vec<&'static str>) {
     let mut unsupported = Vec::new();
     let result = write_track_inner(album, track, position, picture, &mut unsupported, write_position);
     (result, unsupported)
@@ -464,13 +607,20 @@ pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option
     Ok(Some(dest))
 }
 
+/// At most this many files are written at the same time. More rarely helps:
+/// the work is mostly disk access, and a spinning disk gets slower with more.
+const MAX_WRITERS: usize = 4;
+
 /// Writes the album's metadata to every Track's file. Disk and Voids have no
 /// file and are skipped; one failing file never stops the others.
+///
+/// Files are written in parallel; `progress(done, total)` is called (from a worker
+/// thread) after each file. A file whose tags would not change is not rewritten.
 ///
 /// Track numbers come from `item_positions()`, so Voids leave real gaps in the numbering.
 /// No totals are written (track/disc totals are ambiguous with gaps).
 /// Cover art is only embedded when the album has one; an album without art leaves any picture already in the files alone.
-pub fn write_album_tags(album: &Album, save_position: bool) -> WriteSummary {
+pub fn write_album_tags(album: &Album, save_position: bool, progress: &(dyn Fn(usize, usize) + Sync)) -> WriteSummary {
     let mut summary = WriteSummary::default();
 
     let picture = match &album.art_path {
@@ -484,34 +634,78 @@ pub fn write_album_tags(album: &Album, save_position: bool) -> WriteSummary {
         None => None,
     };
 
+    struct Job<'a> {
+        index: usize,
+        track: &'a crate::models::track::Track,
+        position: Option<AlbumItemPosition>,
+    }
+
+    // Tracks pointing at the same file must never be written at the same time, so
+    // they form one unit that a single worker handles in order.
     let positions = album.item_positions();
+    let mut units: Vec<Vec<Job>> = Vec::new();
+    let mut unit_of: HashMap<&Path, usize> = HashMap::new();
     for (index, (item, position)) in album.get_items().iter().zip(positions).enumerate() {
         let AlbumItem::Track(track) = item else {
             continue;
         };
-        let (result, unsupported) = write_track(album, track, position, picture.as_ref(), save_position);
-        summary.reports.push(WriteReport {
-            index,
-            path: track.file_path.clone(),
-            result,
-            unsupported,
+        let unit = *unit_of.entry(track.file_path.as_path()).or_insert_with(|| {
+            units.push(Vec::new());
+            units.len() - 1
         });
+        units[unit].push(Job { index, track, position });
     }
 
+    let total: usize = units.iter().map(Vec::len).sum();
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .min(MAX_WRITERS)
+        .min(units.len())
+        .max(1);
+
+    let next = AtomicUsize::new(0);
+    let done = AtomicUsize::new(0);
+    let reports = Mutex::new(Vec::with_capacity(total));
+
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| {
+                loop {
+                    let Some(unit) = units.get(next.fetch_add(1, Ordering::Relaxed)) else {
+                        break;
+                    };
+                    for job in unit {
+                        let (result, unsupported) =
+                            write_track(album, job.track, job.position, picture.as_ref(), save_position);
+                        let skipped = matches!(result, Ok(true));
+                        reports.lock().unwrap().push(WriteReport {
+                            index: job.index,
+                            path: job.track.file_path.clone(),
+                            result: result.map(|_| ()),
+                            unsupported,
+                            skipped,
+                        });
+                        progress(done.fetch_add(1, Ordering::Relaxed) + 1, total);
+                    }
+                }
+            });
+        }
+    });
+
+    summary.reports = reports.into_inner().unwrap();
+    summary.reports.sort_by_key(|r| r.index);
     summary
 }
 
-pub fn split_values(value: &str) -> Vec<String> {
+fn connect_values(value: &str) -> String {
     value
-        .split([';', '|', '\0'])
+        .split(&[';', '|'])
         .map(str::trim)
         .filter(|p| !p.is_empty())
-        .map(str::to_string)
-        .collect()
-}
-
-fn connect_values(value: &str) -> String {
-    split_values(value).join("\0")
+        .map(|r| r.to_string())
+        .collect::<Vec<_>>()
+        .join("\0")
 }
 
 fn all_values(tag: &Tag, key: ItemKey) -> String {
