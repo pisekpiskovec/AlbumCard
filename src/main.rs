@@ -452,10 +452,8 @@ impl SimpleComponent for AppModel {
                     self.album.add_disk();
                 }
                 AlbumItemType::Track => {
-                    // Early album type check
-                    if self.album.mode == AlbumMode::Single
-                        && self.album.get_items().len() >= self.config.max_count_of_tracks_in_single as usize
-                    {
+                    let tracks = self.album.get_items().iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
+                    if !(self.mode == AlbumMode::Single && tracks >= self.config.max_count_of_tracks_in_single as usize) {
                         self.toast(&format!(
                             "Single cannot hold more than {} Track(s).",
                             self.config.max_count_of_tracks_in_single
