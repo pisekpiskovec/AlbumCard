@@ -702,7 +702,7 @@ impl SimpleComponent for AppModel {
                 self.album.art_path = Some(art_path);
             }
             AppMsg::CloseRequest => {
-                self.config.save().ok();
+                // self.config.save().ok();
                 self.leave(Pending::Quit, &sender);
             }
             AppMsg::ClearAlbumArt => self.album.art_path = None,
@@ -743,7 +743,7 @@ impl SimpleComponent for AppModel {
                 dialog.widget().present(Some(&self.window));
                 self.preferences_dialog = Some(dialog);
             }
-            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => self.config = c,
+            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {self.config = c; self.config.save().ok()},
             AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
                 self.preferences_dialog = None;
                 if let Err(e) = self.config.save() {
