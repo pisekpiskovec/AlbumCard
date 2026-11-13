@@ -756,7 +756,7 @@ impl SimpleComponent for AppModel {
                     return;
                 }
                 match self.rename_plan() {
-                    Err(errors) => self.toast(&Self::firts_problem(&errors)),
+                    Err(errors) => self.toast(&Self::first_problem(&errors)),
                     Ok(plan) if plan.is_empty() => self.toast(&gettext("File names already match the pattern.")),
                     Ok(plan) => {
                         let name =
@@ -791,7 +791,7 @@ impl SimpleComponent for AppModel {
                     }
                     self.toast(&format!("Renamed {n} file(s)."));
                 }
-                Err(errors) => self.toast(&Self::firts_problem(&errors)),
+                Err(errors) => self.toast(&Self::first_problem(&errors)),
             },
         }
     }
@@ -899,7 +899,7 @@ impl AppModel {
                         return false;
                     }
                 }
-                Err(errors) => self.toast(&format!("Renaming skipped: {}", Self::firts_problem(&errors))),
+                Err(errors) => self.toast(&format!("Renaming skipped: {}", Self::first_problem(&errors))),
             }
         }
 
@@ -1026,7 +1026,7 @@ impl AppModel {
         Ok(plan.len())
     }
 
-    fn firts_problem(errors: &[String]) -> String {
+    fn first_problem(errors: &[String]) -> String {
         match errors {
             [] => String::new(),
             [only] => only.clone(),
