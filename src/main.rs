@@ -531,7 +531,7 @@ impl SimpleComponent for AppModel {
                     }
                     AlbumEditPurpose::Edit => {
                         if let Err(errors) = self.album.apply_edit(edit, self.config.max_count_of_tracks_in_single) {
-                            eprintln!("unecpected validation failure applying album edit: {errors:?}");
+                            eprintln!("unexpected validation failure applying album edit: {errors:?}");
                         }
                     }
                 }
@@ -1014,7 +1014,7 @@ impl AppModel {
         renaming::plan(&items)
     }
 
-    /// Renames on disk and updates the album's paths. Does not nave the album.
+    /// Renames on disk and updates the album's paths. Does not save the album.
     fn rename_files(&mut self) -> Result<usize, Vec<String>> {
         let plan = self.rename_plan()?;
         if plan.is_empty() {

@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Seprarator used between names for `%{artists}`.
+/// Separator used between names for `%{artists}`.
 pub const ARTIST_SEPARATOR: &str = ", ";
 
 const TOKENS: [&str; 8] = [
@@ -22,8 +22,8 @@ pub struct NameParts {
     pub disk: Option<u32>,
 }
 
-/// Checks a patern without rendering it.
-/// The error lists wath is wrong in words the user can act on.
+/// Checks a pattern without rendering it.
+/// The error lists what is wrong in words the user can act on.
 pub fn validate_pattern(pattern: &str) -> Result<(), String> {
     if pattern.trim().is_empty() {
         return Err("The pattern is empty".to_string());
@@ -55,6 +55,14 @@ fn sanitize(raw: &str, max_bytes: usize) -> String {
         .chars()
         .filter(|c| !c.is_control())
         .map(|c| if c == '/' { '-' } else { c })
+        .map(|c| if c == ':' { '-' } else { c })
+        .map(|c| if c == '?' { '_' } else { c })
+        .map(|c| if c == '*' { '-' } else { c })
+        .map(|c| if c == '"' { '-' } else { c })
+        .map(|c| if c == '<' { '-' } else { c })
+        .map(|c| if c == '>' { '-' } else { c })
+        .map(|c| if c == '|' { '-' } else { c })
+        .map(|c| if c == '\\' { '-' } else { c })
         .collect();
     let collapsed = replaced.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut out = collapsed.trim_matches(|c: char| c == '.' || c == ' ').to_string();
@@ -71,7 +79,7 @@ pub fn render(pattern: &str, parts: &NameParts) -> Option<String> {
     let mut rest = pattern;
     while let Some(start) = rest.find("%{") {
         out.push_str(&rest[..start]);
-        let after = &rest[&start + 2..];
+        let after = &rest[start + 2..];
         let Some(end) = after.find('}') else {
             out.push_str(&rest[start..]);
             rest = "";
@@ -166,7 +174,7 @@ fn rollback(staged: &[(PathBuf, PathBuf)]) {
 }
 
 /// Carries out a plan in two steps (everything to a temporary name, then to the final name) so names can be swapped safely.
-/// If something fails, wat was already moved is moved back.
+/// If something fails, what was already moved is moved back.
 pub fn apply(plan: &[PlannedRename]) -> Result<(), String> {
     let mut staged: Vec<(PathBuf, PathBuf)> = Vec::new();
     for (i, step) in plan.iter().enumerate() {

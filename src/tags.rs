@@ -96,7 +96,7 @@ fn read_custom(path: &Path, name: &str) -> Option<String> {
 
 /// Reads the tags of `path` into a `TrackEdit`, ready to prefill the edit dialog.
 /// Never invents data: a missing title falls back to the filename
-/// (so the track passes validation), everythin else stays blank.
+/// (so the track passes validation), everything else stays blank.
 pub fn read_track_edit(path: &Path, album_artist: &str, album_genre: &str) -> Result<TrackEdit, TagError> {
     let tagged = Probe::open(path)
         .map_err(err)?
@@ -309,7 +309,7 @@ fn write_track_inner(
 
     let tag = tagged
         .primary_tag_mut()
-        .expect("a tag wa inserted just above if none existed");
+        .expect("a tag was inserted just above if none existed");
 
     tag.set_title(track.title.clone());
     tag.set_artist(connect_values(track.effective_artist(album)));
@@ -402,7 +402,7 @@ fn write_track(
 }
 
 /// File extension for an embedded picture: from its MIME type,
-/// or sniffed from the firt bytes when the tag didn't say.
+/// or sniffed from the first bytes when the tag didn't say.
 fn picture_extension(picture: &Picture) -> Option<&'static str> {
     match picture.mime_type() {
         Some(lofty::picture::MimeType::Png) => return Some("png"),
@@ -426,7 +426,7 @@ fn picture_extension(picture: &Picture) -> Option<&'static str> {
     }
 }
 
-/// Saves the fron cover embedded in `audio` (or, failing that, the first picture)
+/// Saves the front cover embedded in `audio` (or, failing that, the first picture)
 /// as `<dest_dir>/<stem>.<ext>` and returns the new path.
 /// `Ok(None)` means the file simply has no usable picture.
 pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option<PathBuf>, TagError> {
