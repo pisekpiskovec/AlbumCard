@@ -115,7 +115,7 @@ impl SimpleComponent for AppModel {
     }
 
     fn init(_init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        let config = Config::load().unwrap_or_default();
+        let config = Config::load();
         let album = Album::empty();
         let sidebar_albums = storage::list_albums();
 
@@ -409,6 +409,10 @@ impl SimpleComponent for AppModel {
         populate_tracklist(&tracklist_box, &album, sender);
 
         let saved_json = album.to_json().expect("serialization should succeed");
+
+        if let Some(e) = config.err() {
+            self.toast("Failed to load config: {e}");
+        }
 
         let model = AppModel {
             album,
