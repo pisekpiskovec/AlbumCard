@@ -456,7 +456,7 @@ impl SimpleComponent for AppModel {
                 }
                 AlbumItemType::Track => {
                     let tracks = self.album.get_items().iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
-                    if !(self.album.mode == AlbumMode::Single && tracks >= self.config.max_count_of_tracks_in_single as usize) {
+                    if self.album.mode == AlbumMode::Single && tracks >= self.config.max_count_of_tracks_in_single as usize {
                         self.toast(&format!(
                             "Single cannot hold more than {} Track(s).",
                             self.config.max_count_of_tracks_in_single
@@ -746,7 +746,7 @@ impl SimpleComponent for AppModel {
                 dialog.widget().present(Some(&self.window));
                 self.preferences_dialog = Some(dialog);
             }
-            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {self.config = c; self.config.save().ok()},
+            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {self.config = c; self.config.save().ok(); },
             AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
                 self.preferences_dialog = None;
                 if let Err(e) = self.config.save() {
