@@ -503,7 +503,7 @@ impl SimpleComponent for AppModel {
                 };
                 let could_be_single = self.album.could_be_single(self.config.max_count_of_tracks_in_single);
                 let dialog = AlbumEditDialog::builder()
-                    .launch((AlbumEditPurpose::Edit, edit, could_be_single))
+                    .launch((AlbumEditPurpose::Edit, edit, could_be_single, self.config.max_count_of_tracks_in_single))
                     .forward(sender.input_sender(), AppMsg::AlbumEditResult);
                 dialog.widget().present(Some(&self.window));
                 self.album_edit_dialog = Some(dialog);
@@ -929,7 +929,7 @@ impl AppModel {
                     mode: AlbumMode::Ep,
                 };
                 let dialog = AlbumEditDialog::builder()
-                    .launch((AlbumEditPurpose::New, edit, true))
+                    .launch((AlbumEditPurpose::New, edit, true, self.config.max_count_of_tracks_in_single))
                     .forward(sender.input_sender(), AppMsg::AlbumEditResult);
                 dialog.widget().present(Some(&self.window));
                 self.album_edit_dialog = Some(dialog);

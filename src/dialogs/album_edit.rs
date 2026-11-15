@@ -37,6 +37,7 @@ pub struct AlbumEditDialog {
     purpose: AlbumEditPurpose,
     edit: AlbumEdit,
     could_be_single: bool,
+    max_in_single: u32,
 }
 
 pub struct AlbumEditWidgets {
@@ -54,7 +55,7 @@ fn release_date_label(value: &str) -> String {
 impl Component for AlbumEditDialog {
     type Input = AlbumEditMsg;
     type Output = AlbumEditOutput;
-    type Init = (AlbumEditPurpose, AlbumEdit, bool);
+    type Init = (AlbumEditPurpose, AlbumEdit, bool, u32);
     type Root = adw::Dialog;
     type Widgets = AlbumEditWidgets;
     type CommandOutput = ();
@@ -68,7 +69,7 @@ impl Component for AlbumEditDialog {
     }
 
     fn init(init: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
-        let (purpose, edit, could_be_single) = init;
+        let (purpose, edit, could_be_single, max_in_single) = init;
 
         root.set_title(&match purpose {
             AlbumEditPurpose::New => gettext("New Album"),
@@ -220,6 +221,7 @@ impl Component for AlbumEditDialog {
             purpose,
             edit,
             could_be_single,
+            max_in_single,
         };
         let widgets = AlbumEditWidgets {
             release_date_button,
@@ -249,11 +251,12 @@ impl Component for AlbumEditDialog {
                 let mut scratch =
                     Album::new(AlbumMode::Ep, "x", "x", "", "x", None).expect("static placeholder values always parse");
                 if !self.could_be_single {
-                    scratch.add_track(Track::new(PathBuf::new()), 1);
-                    scratch.add_track(Track::new(PathBuf::new()), 1);
+                    for _ in 0..=self.max_in_single {
+                        scratch.add_track(Track::new(PathBuf::new()), self.max_in_single);
+                    }
                 }
 
-                match scratch.apply_edit(self.edit.clone(), 1) {
+                match scratch.apply_edit(self.edit.clone(), self.max_in_single) {
                     Ok(()) => {
                         sender
                             .output(AlbumEditOutput::Saved {
