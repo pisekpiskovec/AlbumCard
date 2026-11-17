@@ -6,19 +6,87 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: \n"
+"Project-Id-Version: AlbumCard v2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 00:46+0100\n"
-"PO-Revision-Date: 2026-11-10 00:48+0100\n"
+"POT-Creation-Date: 2026-11-18 00:19+0100\n"
+"PO-Revision-Date: 2026-11-18 00:25+0100\n"
 "Last-Translator: \n"
-"Language-Team: \n"
+"Language-Team: Písek Pískovec <pisekpiskovec@gmail.com>\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.10\n"
 
-#: src/dialogs/preferences.rs:38 src/main.rs:152
+#: src/dialogs/track_edit.rs:53 src/dialogs/album_edit.rs:50
+msgid "Not set"
+msgstr "Not set"
+
+#: src/dialogs/track_edit.rs:68 src/dialogs/album_edit.rs:65
+msgid "Edit Track"
+msgstr "Edit Track"
+
+#: src/dialogs/track_edit.rs:83 src/dialogs/album_edit.rs:87 src/main.rs:952
+msgid "Save"
+msgstr "Save"
+
+#: src/dialogs/track_edit.rs:92
+msgid "New Track"
+msgstr "New Track"
+
+#: src/dialogs/track_edit.rs:93
+msgid "Add"
+msgstr "Add"
+
+#: src/dialogs/track_edit.rs:98
+msgid "Track Details"
+msgstr "Track Details"
+
+#: src/dialogs/track_edit.rs:101
+msgid "Sorting Details"
+msgstr "Sorting Details"
+
+#: src/dialogs/track_edit.rs:132
+msgid "File Path"
+msgstr "File Path"
+
+#: src/dialogs/track_edit.rs:149 src/dialogs/album_edit.rs:160
+msgid "Clear date"
+msgstr "Clear date"
+
+#: src/dialogs/track_edit.rs:181 src/dialogs/album_edit.rs:192
+msgid "Release date"
+msgstr "Release date"
+
+#: src/dialogs/track_edit.rs:182
+msgid "Blank to use album release date"
+msgstr "Leave blank to use album's release date"
+
+#: src/dialogs/album_edit.rs:75 src/main.rs:188
+msgid "New Album"
+msgstr "New Album"
+
+#: src/dialogs/album_edit.rs:76
+msgid "Edit Album"
+msgstr "Edit Album"
+
+#: src/dialogs/album_edit.rs:86
+msgid "Create"
+msgstr "Create"
+
+#: src/dialogs/album_edit.rs:99 src/main.rs:1040
+msgid "Single"
+msgstr "Single"
+
+#: src/dialogs/album_edit.rs:100 src/main.rs:1041
+msgid "EP"
+msgstr "EP"
+
+#: src/dialogs/album_edit.rs:128
+msgid "Album type"
+msgstr "Album type"
+
+#: src/dialogs/preferences.rs:38 src/main.rs:155
 msgid "Preferences"
 msgstr "Preferences"
 
@@ -27,10 +95,10 @@ msgid "Default Void size"
 msgstr "Default Void size"
 
 #: src/dialogs/preferences.rs:54
-msgid "Size give to a newly added Void"
-msgstr "Size to give a newly added Void"
+msgid "Size given to a newly added Void"
+msgstr "Size given to a newly added Void"
 
-#: src/dialogs/preferences.rs:62 src/main.rs:220
+#: src/dialogs/preferences.rs:62 src/main.rs:223
 msgid "Albums"
 msgstr "Albums"
 
@@ -66,178 +134,110 @@ msgstr "Filename pattern used when renaming items in EPs"
 msgid "File Renaming"
 msgstr "File Renaming"
 
-#: src/dialogs/track_edit.rs:53 src/dialogs/album_edit.rs:49
-msgid "Not set"
-msgstr "Not set"
-
-#: src/dialogs/track_edit.rs:68 src/dialogs/album_edit.rs:64
-msgid "Edit Track"
-msgstr "Edit Track"
-
-#: src/dialogs/track_edit.rs:83 src/dialogs/album_edit.rs:86 src/main.rs:950
-msgid "Save"
-msgstr "Save"
-
-#: src/dialogs/track_edit.rs:92
-msgid "New Track"
-msgstr "New Track"
-
-#: src/dialogs/track_edit.rs:93
-msgid "Add"
-msgstr "Add"
-
-#: src/dialogs/track_edit.rs:98
-msgid "Track Details"
-msgstr "Track Details"
-
-#: src/dialogs/track_edit.rs:101
-msgid "Sorting Details"
-msgstr "Sorting Details"
-
-#: src/dialogs/track_edit.rs:132
-msgid "File Path"
-msgstr "File Path"
-
-#: src/dialogs/track_edit.rs:149 src/dialogs/album_edit.rs:159
-msgid "Clear date"
-msgstr "Clear date"
-
-#: src/dialogs/track_edit.rs:181 src/dialogs/album_edit.rs:191
-msgid "Release date"
-msgstr "Release date"
-
-#: src/dialogs/track_edit.rs:182
-msgid "Blank to use album release date"
-msgstr "Leave blank to use album's release date"
-
-#: src/dialogs/album_edit.rs:74 src/main.rs:185
-msgid "New Album"
-msgstr "New Album"
-
-#: src/dialogs/album_edit.rs:75
-msgid "Edit Album"
-msgstr "Edit Album"
-
-#: src/dialogs/album_edit.rs:85
-msgid "Create"
-msgstr "Create"
-
-#: src/dialogs/album_edit.rs:98 src/main.rs:1038
-msgid "Single"
-msgstr "Single"
-
-#: src/dialogs/album_edit.rs:99 src/main.rs:1039
-msgid "EP"
-msgstr "EP"
-
-#: src/dialogs/album_edit.rs:127
-msgid "Album type"
-msgstr "Album type"
-
-#: src/main.rs:163
+#: src/main.rs:166
 msgid "About AlbumCard"
 msgstr "About AlbumCard"
 
-#: src/main.rs:176
+#: src/main.rs:179
 msgid "Main Menu"
 msgstr "Main Menu"
 
-#: src/main.rs:255
+#: src/main.rs:258
 msgid "Disk"
 msgstr "Disk"
 
-#: src/main.rs:256
+#: src/main.rs:259
 msgid "Track"
 msgstr "Track"
 
-#: src/main.rs:257
+#: src/main.rs:260
 msgid "Void"
 msgstr "Void"
 
-#: src/main.rs:267
+#: src/main.rs:270
 msgid "Add Item"
 msgstr "Add Item"
 
-#: src/main.rs:322
+#: src/main.rs:325
 msgid "Load Album Art"
 msgstr "Load Album Art"
 
-#: src/main.rs:323
+#: src/main.rs:326
 msgid "Remove Album Art"
 msgstr "Remove Album Art"
 
-#: src/main.rs:467
+#: src/main.rs:472
 msgid "Open audio file"
 msgstr "Open Audio"
 
-#: src/main.rs:602
+#: src/main.rs:607
 msgid "translator-credits"
 msgstr "Písek Pískovec <pisekpiskovec@gmail.com>"
 
-#: src/main.rs:655
+#: src/main.rs:660
 msgid "Album saved successfully."
 msgstr "Album saved successfully."
 
-#: src/main.rs:684
+#: src/main.rs:689
 msgid "Open Image"
 msgstr "Open Image"
 
-#: src/main.rs:715
+#: src/main.rs:720
 msgid "Delete album?"
 msgstr "Delete album?"
 
-#: src/main.rs:718 src/main.rs:774 src/main.rs:948
+#: src/main.rs:723 src/main.rs:776 src/main.rs:950
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/main.rs:718 src/main.rs:1092
+#: src/main.rs:723 src/main.rs:1094
 msgid "Delete Album"
 msgstr "Delete Album"
 
-#: src/main.rs:733
+#: src/main.rs:738
 msgid "Album deleted."
 msgstr "Album deleted."
 
-#: src/main.rs:753 src/main.rs:834
+#: src/main.rs:755 src/main.rs:836
 msgid "Save the album before renaming its files."
 msgstr "Save the album before renaming its files."
 
-#: src/main.rs:758
+#: src/main.rs:760
 msgid "File names already match the pattern."
 msgstr "File names already match the pattern."
 
-#: src/main.rs:771
+#: src/main.rs:773
 msgid "Rename files?"
 msgstr "Rename files?"
 
-#: src/main.rs:774
+#: src/main.rs:776
 msgid "Rename"
 msgstr "Rename"
 
-#: src/main.rs:836
+#: src/main.rs:838
 msgid "Rename files to match the pattern"
 msgstr "Rename files to match the pattern"
 
-#: src/main.rs:944
+#: src/main.rs:946
 msgid "Unsaved changes"
 msgstr "Unsaved changes"
 
-#: src/main.rs:945
+#: src/main.rs:947
 msgid "Save changes to this album before continuing?"
 msgstr "Save changes to this album before continuing?"
 
-#: src/main.rs:949
+#: src/main.rs:951
 msgid "Discard"
 msgstr "Discard"
 
-#: src/main.rs:972
+#: src/main.rs:974
 msgid "Album art taken from the new track."
 msgstr "Album art taken from the new track."
 
-#: src/main.rs:1061
+#: src/main.rs:1063
 msgid "Unknown date"
 msgstr "Unknown date"
 
-#: src/main.rs:1135
+#: src/main.rs:1137
 msgid "Disc"
 msgstr "Disc"
