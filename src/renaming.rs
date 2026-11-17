@@ -34,7 +34,7 @@ pub fn validate_pattern(pattern: &str) -> Result<(), String> {
     while let Some(start) = rest.find("%{") {
         let after = &rest[start + 2..];
         let Some(end) = after.find("}") else {
-            return Err("Unclosed %{\" in the pattern".to_string());
+            return Err("Unclosed %{ in the pattern".to_string());
         };
         let name = &after[..end];
         if !TOKENS.contains(&name) {
