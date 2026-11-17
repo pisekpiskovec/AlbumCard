@@ -311,11 +311,13 @@ fn write_track_inner(
         .primary_tag_mut()
         .expect("a tag was inserted just above if none existed");
 
+    let non_empty = |s: String| Some(s).filter(|s| !s.is_empty());
+
     tag.set_title(track.title.clone());
-    tag.set_artist(connect_values(track.effective_artist(album)));
+    put(tag, ItemKey::TrackArtist, non_empty(connect_values(track.effective_artist(album))).as_deref());
     tag.set_album(album.title.clone());
-    tag.set_genre(connect_values(track.effective_genre(album)));
-    tag.insert_text(ItemKey::AlbumArtist, connect_values(&album.album_artist));
+    put(tag, ItemKey::Genre, non_empty(connect_values(track.effective_genre(album))).as_deref());
+    put(tag, ItemKey::AlbumArtist, non_empty(connect_values(&album.album_artist)).as_deref());
 
     if let Some(position) = position {
         if let Some(n) = position.track
@@ -382,7 +384,7 @@ fn write_track_inner(
     tagged.save_to_path(path, write_opts()).map_err(err)?;
 
     for (label, cn, value) in custom {
-        if !write_custom(path, cn, value.as_deref())? {
+        if !value.is_none() && !read_custom(path, cn).is_none() && !write_custom(path, cn, value.as_deref())? {
             unsupported.push(label);
         }
     }
