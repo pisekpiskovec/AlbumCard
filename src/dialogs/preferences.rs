@@ -9,15 +9,15 @@ pub enum PreferencesMsg {
     DefaultVoidSize(u32),
     MaxTracksInSingle(u32),
     SkipPositionInSingle(bool),
-    RenamePatterinInEp(String),
-    RenamePatterinInSingle(String),
+    RenamePatternInEp(String),
+    RenamePatternInSingle(String),
     RenameFileOnSave(bool),
     Closed,
 }
 
 #[derive(Debug)]
 pub enum PreferencesOutput {
-    /// Sent ont every change; the app keeps the latest copy.
+    /// Sent on every change; the app keeps the latest copy.
     Changed(Config),
     /// The dialog was dismissed; the app should save now.
     Closed,
@@ -51,7 +51,7 @@ impl SimpleComponent for PreferencesDialog {
         // Albums
         let void_row = adw::SpinRow::with_range(1.0, 999.0, 1.0);
         void_row.set_title(&gettext("Default Void size"));
-        void_row.set_subtitle(&gettext("Size give to a newly added Void"));
+        void_row.set_subtitle(&gettext("Size given to a newly added Void"));
         void_row.set_value(config.default_void_size as f64);
         {
             let sender = sender.clone();
@@ -108,7 +108,7 @@ impl SimpleComponent for PreferencesDialog {
                 if valid.is_ok() {
                     row.remove_css_class("error");
                     row.set_tooltip_text(Some(""));
-                    sender.input(PreferencesMsg::RenamePatterinInSingle(row.text().to_string()));
+                    sender.input(PreferencesMsg::RenamePatternInSingle(row.text().to_string()));
                 } else {
                     row.add_css_class("error");
                     row.set_tooltip_text(valid.err().as_deref());
@@ -125,7 +125,7 @@ impl SimpleComponent for PreferencesDialog {
                 if valid.is_ok() {
                     row.remove_css_class("error");
                     row.set_tooltip_text(Some(""));
-                    sender.input(PreferencesMsg::RenamePatterinInEp(row.text().to_string()));
+                    sender.input(PreferencesMsg::RenamePatternInEp(row.text().to_string()));
                 } else {
                     row.add_css_class("error");
                     row.set_tooltip_text(valid.err().as_deref());
@@ -154,8 +154,8 @@ impl SimpleComponent for PreferencesDialog {
             PreferencesMsg::DefaultVoidSize(v) => self.config.default_void_size = v.max(1),
             PreferencesMsg::MaxTracksInSingle(v) => self.config.max_count_of_tracks_in_single = v.max(1),
             PreferencesMsg::SkipPositionInSingle(v) => self.config.skip_saving_track_position_in_single = v,
-            PreferencesMsg::RenamePatterinInEp(v) => self.config.rename_pattern_ep = v,
-            PreferencesMsg::RenamePatterinInSingle(v) => self.config.rename_pattern_single = v,
+            PreferencesMsg::RenamePatternInEp(v) => self.config.rename_pattern_ep = v,
+            PreferencesMsg::RenamePatternInSingle(v) => self.config.rename_pattern_single = v,
             PreferencesMsg::RenameFileOnSave(v) => self.config.rename_on_save = v,
             PreferencesMsg::Closed => {
                 sender.output(PreferencesOutput::Closed).ok();
