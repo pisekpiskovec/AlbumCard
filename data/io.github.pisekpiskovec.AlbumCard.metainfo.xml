@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.pisekpiskovec.AlbumCard</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0-or-later</project_license>
+  <project_license>GPL-3.0</project_license>
 
   <name>AlbumCard</name>
   <summary>Next generation of audio taggers</summary>
@@ -31,9 +31,9 @@
     <name>Písek Pískovec</name>
   </developer>
 
-  <url type="homepage">https://github.com/pisekpiskovec/AlbumArt</url>
-  <url type="vcs-browser">https://github.com/pisekpiskovec/AlbumArt</url>
-  <url type="bugtracker">https://github.com/pisekpiskovec/AlbumArt/issues</url>
+  <url type="homepage">https://github.com/pisekpiskovec/AlbumCard</url>
+  <url type="vcs-browser">https://github.com/pisekpiskovec/AlbumCard</url>
+  <url type="bugtracker">https://github.com/pisekpiskovec/AlbumCard/issues</url>
 
   <screenshots>
     <screenshot type="default">
@@ -66,16 +66,16 @@
   <content_rating type="oars-1.1" />
 
   <releases>
-    <release version="2.0.0" date="2026-11-13">
+    <release version="2.0.0" date="2026-11-32">
       <description translate="no">
-        <p>Cutie Mew Mew Magic (by Toby Fox)</p>
+        <p>BAD SURPRISE (by TENROGUN)</p>
 
         <ul>
           <li>Added support for multiple values</li>
           <li>Added config</li>
           <li>Added file renaming based on patterns</li>
-          <li>Added translaton system and English and Czech translations</li>
-          <li>Sped up tag writing by making the process run in parallel</li>
+          <li>Added translation system and English and Czech translations</li>
+          <li>Fixed bugs</li>
         </ul>
       </description>
     </release>
