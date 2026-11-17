@@ -749,9 +749,6 @@ impl SimpleComponent for AppModel {
             AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {self.config = c; self.config.save().ok(); },
             AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
                 self.preferences_dialog = None;
-                if let Err(e) = self.config.save() {
-                    self.toast(&format!("Couldn't save preferences: {e}"));
-                }
             }
             AppMsg::RenameRequest => {
                 if self.is_dirty() {
