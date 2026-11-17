@@ -412,7 +412,7 @@ fn clearing_a_field_clears_it_in_the_file() {
     album2.add_track(track_at(path.clone(), "Song"), 1);
     write_album_tags(
         &album2,
-        !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
+        !(album2.mode == Single && config::Config::default().skip_saving_track_position_in_single),
     );
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().composer, "");
 }
@@ -441,13 +441,12 @@ fn track_override_beats_album_and_missing_file_is_reported_not_fatal() {
 #[test]
 fn year_only_date_is_left_blank() {
     // Hand-write a year-only date through the writer's own path:
-    // a track whose date is None and album has none leaves the key absent -> blang.
+    // a track whose date is None and album has none leaves the key absent -> blank.
     let path = silent_mp3("nodate.mp3");
     let mut album = Album::new(Ep, "A", "Artist", "", "The Nerve", None).unwrap();
     album.add_track(track_at(path.clone(), "Song"), 1);
     write_album_tags(&album, !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single));
     assert_eq!(read_track_edit(&path, "Artist", "Genre").unwrap().release_date, "");
-    let _ = TrackEdit::default();
 }
 
 #[test]
