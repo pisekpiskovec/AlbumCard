@@ -65,7 +65,26 @@
   <launchable type="desktop-id">io.github.pisekpiskovec.AlbumCard.desktop</launchable>
   <content_rating type="oars-1.1" />
 
+  <kudos>
+    <kudo>ModernToolkit</kudo>
+  </kudos>
+
+  <supports>
+    <control>pointing<control>
+  </supports>
+
   <releases>
+    <release version="2.1" date="2026-11-19" type="stable" urgency="medium">
+      <description translate="no">
+        <p>Cutie Mew Mew Magic (by Toby Fox)</p>
+
+        <ul>
+          <li>Added album art extraction</li>
+          <li>Fixed Flatpak build runner</li>
+          <li>Fixed Flatpak not being translated</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.0" date="2026-11-19">
       <description translate="no">
         <p>BAD SURPRISE (by TENROGUN)</p>
