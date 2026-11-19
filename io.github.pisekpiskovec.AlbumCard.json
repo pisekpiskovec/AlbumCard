@@ -19,9 +19,11 @@
   "build-options": {
     "append-path": "/usr/lib/sdk/rust-stable/bin",
     "env": {
-      "CARGO_HOME": "/run/build/albumcard/cargo"
+      "CARGO_HOME": "/run/build/albumcard/cargo",
+      "ALBUMCARD_LOCALEDIR": "/app/share/locale"
     }
   },
+  "separate-locales": false,
   "modules": [
     {
       "name": "albumcard",
@@ -29,6 +31,7 @@
       "build-commands": [
         "cargo --offline fetch --manifest-path Cargo.toml --verbose",
         "cargo --offline build --release --verbose",
+        "for f in po/*.po; do l=$(basename \"$f\" .po); install -d /app/share/locale/$l/LC_MESSAGES; msgfmt \"$f\" -o /app/share/locale/$l/LC_MESSAGES/io.github.pisekpiskovec.AlbumCard.mo; done",
         "install -Dm755 target/release/albumcard -t /app/bin",
         "install -Dm644 data/io.github.pisekpiskovec.AlbumCard.desktop -t /app/share/applications",
         "install -Dm644 data/io.github.pisekpiskovec.AlbumCard.metainfo.xml -t /app/share/metainfo",

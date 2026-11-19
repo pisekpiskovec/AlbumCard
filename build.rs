@@ -42,6 +42,8 @@ fn main() {
     }
 
     // Expose envirnoment variables to Rust code at compile time
-    println!("cargo:rustc-env=LOCALEDIR={}/locale", out_dir);
-    println!("cargo:rustc-env=GETTEXT_PACKAGE={}", text_domain);
+    println!("cargo:rerun-if-env-changed=ALBUMCARD_LOCALEDIR");
+    let localedir = env::var("ALBUMCARD_LOCALEDIR").unwrap_or_else(|_| format!("{out_dir}/locale"));
+    println!("cargo:rustc-env=LOCALEDIR={localedir}");
+    println!("cargo:rustc-env=GETTEXT_PACKAGE={text_domain}");
 }
