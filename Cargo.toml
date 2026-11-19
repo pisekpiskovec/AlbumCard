@@ -2,7 +2,7 @@
 name = "albumcard"
 version = "2.1.0"
 edition = "2024"
-license = "GPLv3"
+license = "GPLv3-or-later"
 description = "Next generation of audio taggers"
 repository = "https://github.com/pisekpiskovec/AlbumCard"
 
