@@ -467,8 +467,15 @@ impl SimpleComponent for AppModel {
                     self.album.add_disk();
                 }
                 AlbumItemType::Track => {
-                    let tracks = self.album.get_items().iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
-                    if self.album.mode == AlbumMode::Single && tracks >= self.config.max_count_of_tracks_in_single as usize {
+                    let tracks = self
+                        .album
+                        .get_items()
+                        .iter()
+                        .filter(|i| matches!(i, AlbumItem::Track(_)))
+                        .count();
+                    if self.album.mode == AlbumMode::Single
+                        && tracks >= self.config.max_count_of_tracks_in_single as usize
+                    {
                         self.toast(&format!(
                             "Single cannot hold more than {} Track(s).",
                             self.config.max_count_of_tracks_in_single
@@ -758,7 +765,10 @@ impl SimpleComponent for AppModel {
                 dialog.widget().present(Some(&self.window));
                 self.preferences_dialog = Some(dialog);
             }
-            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {self.config = c; self.config.save().ok(); },
+            AppMsg::PreferencesResult(PreferencesOutput::Changed(c)) => {
+                self.config = c;
+                self.config.save().ok();
+            }
             AppMsg::PreferencesResult(PreferencesOutput::Closed) => {
                 self.preferences_dialog = None;
             }
@@ -806,7 +816,9 @@ impl SimpleComponent for AppModel {
                 Err(errors) => self.toast(&Self::first_problem(&errors)),
             },
             AppMsg::ExportAlbumArt => {
-                let Some(art) = self.album.art_path.as_ref() else { return };
+                let Some(art) = self.album.art_path.as_ref() else {
+                    return;
+                };
                 let dialog = FileDialog::builder().title(gettext("Save image file")).build();
                 let ext = art.extension().and_then(|e| e.to_str()).unwrap_or("png");
                 dialog.set_initial_name(Some(&format!("cover.{ext}")));
@@ -815,21 +827,27 @@ impl SimpleComponent for AppModel {
                 }
                 let sender = sender.clone();
                 dialog.save(Some(&self.window), None::<&gtk::gio::Cancellable>, move |dialog_result| {
-                    if let Ok(file) = dialog_result && let Some(path) = file.path() {
+                    if let Ok(file) = dialog_result
+                        && let Some(path) = file.path()
+                    {
                         sender.input(AppMsg::ExportAlbumArtPathChosen(path));
                     }
                 });
-            },
+            }
             AppMsg::ExportAlbumArtPathChosen(mut destination) => {
-                let Some(art) = self.album.art_path.as_ref() else { return };
-                if destination.extension().is_none() && let Some(ext) = art.extension() {
+                let Some(art) = self.album.art_path.as_ref() else {
+                    return;
+                };
+                if destination.extension().is_none()
+                    && let Some(ext) = art.extension()
+                {
                     destination.set_extension(ext);
                 }
                 match std::fs::copy(art, destination) {
                     Ok(_) => self.toast(&gettext("Album art exported.")),
                     Err(e) => self.toast(&format!("Couldn't export the art: {e}")),
                 }
-            },
+            }
         }
     }
 

@@ -6,10 +6,13 @@ const DEFAULT_EP_PATTERN: &str = "%{artist} - %{album} - %{title}";
 const DEFAULT_SINGLE_PATTERN: &str = "%{artist} - %{title}";
 
 use crate::{
-    config, models::{
+    config,
+    models::{
         album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
-    }, renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern}, tags::{read_track_edit, write_album_tags},
+    },
+    renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern},
+    tags::{read_track_edit, write_album_tags},
 };
 
 fn silent_mp3(name: &str) -> PathBuf {
@@ -539,7 +542,11 @@ fn unsafe_names_are_tidied() {
 fn validation_names_the_problem() {
     assert!(validate_pattern(DEFAULT_EP_PATTERN).is_ok());
     assert!(validate_pattern("").is_err());
-    assert!(validate_pattern("%{artist} - %{titel}").unwrap_err().contains("%{titel}"));
+    assert!(
+        validate_pattern("%{artist} - %{titel}")
+            .unwrap_err()
+            .contains("%{titel}")
+    );
     assert!(validate_pattern("%{artist").unwrap_err().contains("Unclosed"));
 }
 
@@ -551,7 +558,13 @@ fn plan_keeps_extension_and_skips_unchanged() {
     fs::write(&a, b"a").unwrap();
     fs::write(&b, b"b").unwrap();
     let plan = plan(&[(a.clone(), "New".into()), (b.clone(), "Same".into())]).unwrap();
-    assert_eq!(plan, vec![PlannedRename { from: a, to: dir.join("New.mp3")}]);
+    assert_eq!(
+        plan,
+        vec![PlannedRename {
+            from: a,
+            to: dir.join("New.mp3")
+        }]
+    );
 }
 
 #[test]
@@ -586,8 +599,14 @@ fn failure_rolls_everything_back() {
     let (a, b) = (dir.join("a.mp3"), dir.join("b.mp3"));
     fs::write(&a, b"a").unwrap();
     fs::write(&b, b"b").unwrap();
-    let bad = PlannedRename { from: b.clone(), to: dir.join("missing-dir").join("b.mp3") };
-    let good = PlannedRename { from: a.clone(), to: dir.join("renamed.mp3") };
+    let bad = PlannedRename {
+        from: b.clone(),
+        to: dir.join("missing-dir").join("b.mp3"),
+    };
+    let good = PlannedRename {
+        from: a.clone(),
+        to: dir.join("renamed.mp3"),
+    };
     assert!(apply(&[good, bad]).is_err());
     assert_eq!(fs::read(&a).unwrap(), b"a");
     assert_eq!(fs::read(&b).unwrap(), b"b");
