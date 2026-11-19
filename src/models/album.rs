@@ -146,6 +146,7 @@ impl Album {
 
     /// Total number of track-number slots consumed by Tracks and Voids.
     /// Disks don't count.
+    #[deprecated]
     pub fn get_length(&self) -> u32 {
         let mut track_cnt: u32 = 0;
         for item in self.items.iter() {
@@ -161,17 +162,6 @@ impl Album {
 
     pub fn get_items(&self) -> &[AlbumItem] {
         &self.items
-    }
-
-    /// Single source of truth for whether `kind` may be added right now,
-    /// enforced by every `add_*` method so the model can never end up in
-    /// an invalid state (e.g. a Single with a Disk, or two Tracks).
-    #[deprecated]
-    fn can_add(&self, kind: AlbumItemType) -> bool {
-        if !self.allowed_item_types().contains(&kind) {
-            return false;
-        }
-        true
     }
 
     /// Per-item display position, parallel to `get_items()`. `None` for Disk

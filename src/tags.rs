@@ -31,7 +31,7 @@ use lofty::{
 };
 
 use crate::models::{
-    album::{Album, AlbumItem, AlbumItemPosition, AlbumMode},
+    album::{Album, AlbumItem, AlbumItemPosition},
     track::TrackEdit,
 };
 

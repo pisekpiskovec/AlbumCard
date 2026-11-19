@@ -71,6 +71,7 @@ impl Track {
         track
     }
 
+    #[deprecated]
     pub fn get_file_path(&self) -> &PathBuf {
         &self.file_path
     }
