@@ -125,7 +125,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
-      run: "sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
+      run: "apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc gtk-update-icon-cache"
     - name: Build Flatpak bundle
       uses: flatpak/flatpak-github-actions/flatpak-builder@v6
       with:
