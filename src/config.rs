@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
-pub const CODENAME: &str = "BAD SURPRISE";
+pub const CODENAME: &str = "Cutie Mew Mew Magic";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
