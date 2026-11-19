@@ -81,6 +81,8 @@ enum AppMsg {
     PreferencesResult(PreferencesOutput),
     RenameRequest,
     RenameConfirmed,
+    ExportAlbumArt,
+    ExportAlbumArtPathChosen(PathBuf),
 }
 
 struct AppWidgets {
@@ -96,6 +98,7 @@ struct AppWidgets {
     add_void_action: gtk::gio::SimpleAction,
     save_button: gtk::Button,
     del_art_action: gtk::gio::SimpleAction,
+    export_art_action: gtk::gio::SimpleAction,
     rename_button: gtk::Button,
 }
 
@@ -322,8 +325,16 @@ impl SimpleComponent for AppModel {
             relm4::main_application().add_action(&del_art_action);
         }
         del_art_action.set_enabled(false);
+        let export_art_action = gtk::gio::SimpleAction::new("export-art", None);
+        {
+            let sender = sender.clone();
+            export_art_action.connect_activate(move |_, _| sender.input(AppMsg::ExportAlbumArt));
+            relm4::main_application().add_action(&export_art_action);
+        }
+        export_art_action.set_enabled(false);
         art_menu.append(Some(&gettext("Load Album Art")), Some("app.add-art"));
         art_menu.append(Some(&gettext("Remove Album Art")), Some("app.del-art"));
+        art_menu.append(Some(&gettext("Export Album Art")), Some("app.export-art"));
 
         let art_frame = gtk::Frame::builder()
             .width_request(96)
@@ -443,6 +454,7 @@ impl SimpleComponent for AppModel {
             save_button,
             del_art_action,
             rename_button,
+            export_art_action,
         };
 
         ComponentParts { model, widgets }
@@ -793,6 +805,31 @@ impl SimpleComponent for AppModel {
                 }
                 Err(errors) => self.toast(&Self::first_problem(&errors)),
             },
+            AppMsg::ExportAlbumArt => {
+                let Some(art) = self.album.art_path.as_ref() else { return };
+                let dialog = FileDialog::builder().title(gettext("Save image file")).build();
+                let ext = art.extension().and_then(|e| e.to_str()).unwrap_or("png");
+                dialog.set_initial_name(Some(&format!("cover.{ext}")));
+                if let Some(picture_dir) = dirs::picture_dir() {
+                    dialog.set_initial_folder(Some(&gtk::gio::File::for_path(picture_dir)));
+                }
+                let sender = sender.clone();
+                dialog.save(Some(&self.window), None::<&gtk::gio::Cancellable>, move |dialog_result| {
+                    if let Ok(file) = dialog_result && let Some(path) = file.path() {
+                        sender.input(AppMsg::ExportAlbumArtPathChosen(path));
+                    }
+                });
+            },
+            AppMsg::ExportAlbumArtPathChosen(mut destination) => {
+                let Some(art) = self.album.art_path.as_ref() else { return };
+                if destination.extension().is_none() && let Some(ext) = art.extension() {
+                    destination.set_extension(ext);
+                }
+                match std::fs::copy(art, destination) {
+                    Ok(_) => self.toast(&gettext("Album art exported.")),
+                    Err(e) => self.toast(&format!("Couldn't export the art: {e}")),
+                }
+            },
         }
     }
 
@@ -845,6 +882,7 @@ impl SimpleComponent for AppModel {
         }
 
         widgets.del_art_action.set_enabled(self.album.art_path.is_some());
+        widgets.export_art_action.set_enabled(self.album.art_path.is_some());
 
         let _ = &widgets.split_view;
     }
