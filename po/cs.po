@@ -1,0 +1,243 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: AlbumCard v2.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-18 00:19+0100\n"
+"PO-Revision-Date: 2026-11-19 11:29+0100\n"
+"Last-Translator: \n"
+"Language-Team: Písek Pískovec <pisekpiskovec@gmail.com>\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.10\n"
+
+#: src/dialogs/track_edit.rs:53 src/dialogs/album_edit.rs:50
+msgid "Not set"
+msgstr "Nenastaveno"
+
+#: src/dialogs/track_edit.rs:68 src/dialogs/album_edit.rs:65
+msgid "Edit Track"
+msgstr "Upravit Stopu"
+
+#: src/dialogs/track_edit.rs:83 src/dialogs/album_edit.rs:87 src/main.rs:952
+msgid "Save"
+msgstr "Uložit"
+
+#: src/dialogs/track_edit.rs:92
+msgid "New Track"
+msgstr "Přidat Stopu"
+
+#: src/dialogs/track_edit.rs:93
+msgid "Add"
+msgstr "Přidat"
+
+#: src/dialogs/track_edit.rs:98
+msgid "Track Details"
+msgstr "Podrobnosti o Stopě"
+
+#: src/dialogs/track_edit.rs:101
+msgid "Sorting Details"
+msgstr "Podrobnosti o Řazení"
+
+#: src/dialogs/track_edit.rs:132
+msgid "File Path"
+msgstr "Cesta k souboru"
+
+#: src/dialogs/track_edit.rs:149 src/dialogs/album_edit.rs:160
+msgid "Clear date"
+msgstr "Vymazat datum"
+
+#: src/dialogs/track_edit.rs:181 src/dialogs/album_edit.rs:192
+msgid "Release date"
+msgstr "Datum vydání"
+
+#: src/dialogs/track_edit.rs:182
+msgid "Blank to use album release date"
+msgstr "Vynechte pro použití data vydání alba"
+
+#: src/dialogs/album_edit.rs:75 src/main.rs:188
+msgid "New Album"
+msgstr "Nové Album"
+
+#: src/dialogs/album_edit.rs:76
+msgid "Edit Album"
+msgstr "Upravit Album"
+
+#: src/dialogs/album_edit.rs:86
+msgid "Create"
+msgstr "Vytvořit"
+
+#: src/dialogs/album_edit.rs:99 src/main.rs:1040
+msgid "Single"
+msgstr "Singl"
+
+#: src/dialogs/album_edit.rs:100 src/main.rs:1041
+msgid "EP"
+msgstr "EP"
+
+#: src/dialogs/album_edit.rs:128
+msgid "Album type"
+msgstr "Typ alba"
+
+#: src/dialogs/preferences.rs:38 src/main.rs:155
+msgid "Preferences"
+msgstr "Předvolby"
+
+#: src/dialogs/preferences.rs:53
+msgid "Default Void size"
+msgstr "Výchozí velikost Prázdna"
+
+#: src/dialogs/preferences.rs:54
+msgid "Size given to a newly added Void"
+msgstr "Velikost přidaná nově přidané Prázdnotě"
+
+#: src/dialogs/preferences.rs:62 src/main.rs:223
+msgid "Albums"
+msgstr "Alba"
+
+#: src/dialogs/preferences.rs:67
+msgid "Tracks in a Single"
+msgstr "Stopy v Singlu"
+
+#: src/dialogs/preferences.rs:68
+msgid "How many tracks a Single may hold"
+msgstr "Kolik stop dokáže Singl unést"
+
+#: src/dialogs/preferences.rs:77
+msgid "Don't write track number for Singles"
+msgstr "Nezapisovat číslo stopy pro Singly"
+
+#: src/dialogs/preferences.rs:86
+msgid "Singles"
+msgstr "Singly"
+
+#: src/dialogs/preferences.rs:92
+msgid "Rename files on save"
+msgstr "Přejmenovat soubory po uložení"
+
+#: src/dialogs/preferences.rs:102
+msgid "Filename pattern used when renaming items in Singles"
+msgstr "Šablona názvu souboru použita při přejmenování položek v Singlu"
+
+#: src/dialogs/preferences.rs:119
+msgid "Filename pattern used when renaming items in EPs"
+msgstr "Šablona názvu souboru použita při přejmenování položek v EP"
+
+#: src/dialogs/preferences.rs:135
+msgid "File Renaming"
+msgstr "Přejmenování Souborů"
+
+#: src/main.rs:166
+msgid "About AlbumCard"
+msgstr "O aplikaci AlbumArt"
+
+#: src/main.rs:179
+msgid "Main Menu"
+msgstr "Hlavní nabídka"
+
+#: src/main.rs:258
+msgid "Disk"
+msgstr "Disk"
+
+#: src/main.rs:259
+msgid "Track"
+msgstr "Stopa"
+
+#: src/main.rs:260
+msgid "Void"
+msgstr "Prázdno"
+
+#: src/main.rs:270
+msgid "Add Item"
+msgstr "Přidat položku"
+
+#: src/main.rs:325
+msgid "Load Album Art"
+msgstr "Načíst obrázek alba"
+
+#: src/main.rs:326
+msgid "Remove Album Art"
+msgstr "Odstranit obrázek alba"
+
+#: src/main.rs:472
+msgid "Open audio file"
+msgstr "Otevřít audio soubor"
+
+#: src/main.rs:607
+msgid "translator-credits"
+msgstr "Písek Pískovec <pisekpiskovec@gmail.com>"
+
+#: src/main.rs:660
+msgid "Album saved successfully."
+msgstr "Album úspěšně uloženo."
+
+#: src/main.rs:689
+msgid "Open Image"
+msgstr "Otevřít obrázek"
+
+#: src/main.rs:720
+msgid "Delete album?"
+msgstr "Smazat album?"
+
+#: src/main.rs:723 src/main.rs:776 src/main.rs:950
+msgid "Cancel"
+msgstr "Zrušit"
+
+#: src/main.rs:723 src/main.rs:1094
+msgid "Delete Album"
+msgstr "Smazat album"
+
+#: src/main.rs:738
+msgid "Album deleted."
+msgstr "Album smazáno."
+
+#: src/main.rs:755 src/main.rs:836
+msgid "Save the album before renaming its files."
+msgstr "Uložte album než budete moct přejmenovat soubory."
+
+#: src/main.rs:760
+msgid "File names already match the pattern."
+msgstr "Názvy souborů již odpovídají šabloně."
+
+#: src/main.rs:773
+msgid "Rename files?"
+msgstr "Přejmenovat soubory?"
+
+#: src/main.rs:776
+msgid "Rename"
+msgstr "Přejmenovat"
+
+#: src/main.rs:838
+msgid "Rename files to match the pattern"
+msgstr "Přejmenovat soubory podle šablony"
+
+#: src/main.rs:946
+msgid "Unsaved changes"
+msgstr "Neuložené změny"
+
+#: src/main.rs:947
+msgid "Save changes to this album before continuing?"
+msgstr "Uložit změny v albu před pokračováním?"
+
+#: src/main.rs:951
+msgid "Discard"
+msgstr "Zahodit"
+
+#: src/main.rs:974
+msgid "Album art taken from the new track."
+msgstr "Obrázek alba převzán z přidané stopy."
+
+#: src/main.rs:1063
+msgid "Unknown date"
+msgstr "Neznámé datum"
+
+#: src/main.rs:1137
+msgid "Disc"
+msgstr "Disk"
