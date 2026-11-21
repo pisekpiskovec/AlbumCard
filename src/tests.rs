@@ -1,18 +1,15 @@
 #![cfg(test)]
 
-use std::{fs, path::PathBuf};
+use std::{fs, path::{Path, PathBuf}};
 
 const DEFAULT_EP_PATTERN: &str = "%{artist} - %{album} - %{title}";
 const DEFAULT_SINGLE_PATTERN: &str = "%{artist} - %{title}";
 
 use crate::{
-    config,
-    models::{
+    config, import::{natural_cmp, plan_drop}, models::{
         album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
-    },
-    renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern},
-    tags::{read_track_edit, write_album_tags},
+    }, renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern}, tags::{read_track_edit, write_album_tags},
 };
 
 fn silent_mp3(name: &str) -> PathBuf {
@@ -46,11 +43,24 @@ fn parts() -> NameParts {
     }
 }
 
-fn scratch(name: &str) -> PathBuf {
+fn scratch_rename(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("albumcard-rename-{}-{name}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     dir
+}
+
+fn scratch_drop(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("albumcard-drop-{}-{name}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn touch(dir: &Path, name: &str) -> PathBuf {
+    let p = dir.join(name);
+    fs::write(&p, b"x").unwrap();
+    p
 }
 
 #[test]
@@ -552,7 +562,7 @@ fn validation_names_the_problem() {
 
 #[test]
 fn plan_keeps_extension_and_skips_unchanged() {
-    let dir = scratch("plan");
+    let dir = scratch_rename("plan");
     let a = dir.join("old.mp3");
     let b = dir.join("Same.mp3");
     fs::write(&a, b"a").unwrap();
@@ -569,7 +579,7 @@ fn plan_keeps_extension_and_skips_unchanged() {
 
 #[test]
 fn plan_rejects_duplicates_and_existing_files() {
-    let dir = scratch("conflict");
+    let dir = scratch_rename("conflict");
     let (a, b, other) = (dir.join("a.mp3"), dir.join("b.mp3"), dir.join("Taken.mp3"));
     for f in [&a, &b, &other] {
         fs::write(f, b"x").unwrap();
@@ -582,7 +592,7 @@ fn plan_rejects_duplicates_and_existing_files() {
 
 #[test]
 fn swapping_two_names_works() {
-    let dir = scratch("swap");
+    let dir = scratch_rename("swap");
     let (a, b) = (dir.join("01.mp3"), dir.join("02.mp3"));
     fs::write(&a, b"first").unwrap();
     fs::write(&b, b"second").unwrap();
@@ -595,7 +605,7 @@ fn swapping_two_names_works() {
 
 #[test]
 fn failure_rolls_everything_back() {
-    let dir = scratch("rollback");
+    let dir = scratch_rename("rollback");
     let (a, b) = (dir.join("a.mp3"), dir.join("b.mp3"));
     fs::write(&a, b"a").unwrap();
     fs::write(&b, b"b").unwrap();
@@ -611,4 +621,48 @@ fn failure_rolls_everything_back() {
     assert_eq!(fs::read(&a).unwrap(), b"a");
     assert_eq!(fs::read(&b).unwrap(), b"b");
     assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
+}
+
+#[test]
+fn natural_order_puts_2_before_10() {
+    let mut names = vec!["10 - b.mp3", "2 - a.mp3", "01 - c.mp3", "Intro.mp3"];
+    names.sort_by(|a, b| natural_cmp(a, b));
+    assert_eq!(names, vec!["01 - c.mp3", "2 - a.mp3", "10 - b.mp3", "Intro.mp3"]);
+}
+
+#[test]
+fn folder_imporst_audio_in_order_and_prefers_cover() {
+    let dir = scratch_drop("folder");
+    touch(&dir, "10 - last.mp3");
+    touch(&dir, "2 - second.MP3");
+    touch(&dir, "back.png");
+    touch(&dir, "Cover.JPG");
+    touch(&dir, "notes.txt");
+    touch(&dir, ".hidden.mp3");
+    fs::create_dir(dir.join("sub")).unwrap();
+    touch(&dir.join("sub"), "ignored.mp3");
+
+    let plan = plan_drop(&[dir.clone()]);
+    assert_eq!(plan.audio, vec![dir.join("2 - second.MP3"), dir.join("10 - last.mp3")]);
+    assert_eq!(plan.cover, Some(dir.join("Cover.JPG")));
+    assert_eq!(plan.ignored, 1, "only notes.txt counts; hidden files and sub-folders are skipped silently");
+}
+
+#[test]
+fn without_a_cover_named_image_the_first_image_is_used() {
+    let dir = scratch_drop("nocover");
+    touch(&dir, "b.png");
+    touch(&dir, "a.webp");
+    assert_eq!(plan_drop(&[dir.clone()]).cover, Some(dir.join("a.webp")));
+}
+
+#[test]
+fn loose_files_and_duplicates() {
+    let dir = scratch_drop("loose");
+    let a = touch(&dir, "a.mp3");
+    let img = touch(&dir, "art.png");
+    let plan = plan_drop(&[a.clone(), a.clone(), img.clone(), dir.join("missing.mp3")]);
+    assert_eq!(plan.audio, vec![a]);
+    assert_eq!(plan.cover, Some(img));
+    assert_eq!(plan.ignored, 0);
 }
