@@ -127,8 +127,7 @@ impl Album {
         if !self.allowed_item_types().contains(&AlbumItemType::Track) {
             return false;
         }
-        let tracks = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
-        if self.mode == AlbumMode::Single && tracks >= max_in_single as usize {
+        if self.is_full(max_in_single) {
             return false;
         }
         self.items.push(AlbumItem::Track(track));
@@ -142,6 +141,11 @@ impl Album {
         }
         self.items.push(AlbumItem::Void { size });
         true
+    }
+
+    pub fn is_full(&self, max_in_single: u32) -> bool {
+        let tracks = self.items.iter().filter(|i| matches!(i, AlbumItem::Track(_))).count();
+        self.mode == AlbumMode::Single && tracks >= max_in_single as usize
     }
 
     /// Total number of track-number slots consumed by Tracks and Voids.

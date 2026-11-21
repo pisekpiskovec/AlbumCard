@@ -84,6 +84,8 @@ enum AppMsg {
     RenameConfirmed,
     ExportAlbumArt,
     ExportAlbumArtPathChosen(PathBuf),
+    FilesDropped(Vec<PathBuf>),
+    ReorderItem(usize, usize),
 }
 
 struct AppWidgets {
@@ -415,6 +417,20 @@ impl SimpleComponent for AppModel {
 
         split_view.set_sidebar(Some(&sidebar_page));
         split_view.set_content(Some(&content_page));
+        let file_drop = gtk::DropTarget::new(gtk::gdk::FileList::static_type(), gtk::gdk::DragAction::COPY);
+        {
+            let sender = sender.clone();
+            file_drop.connect_drop(move |_, value, _, _| {
+                let Ok(list) = value.get::<gtk::gdk::FileList>() else { return false };
+                let paths: Vec<PathBuf> = list.files().iter().filter_map(|f| f.path()).collect();
+                if paths.is_empty() {
+                    return false;
+                }
+                sender.input(AppMsg::FilesDropped(paths));
+                true
+            });
+        }
+        root.add_controller(file_drop);
         root.set_content(Some(&split_view));
 
         // Album filling
@@ -849,6 +865,74 @@ impl SimpleComponent for AppModel {
                     Err(e) => self.toast(&format!("Couldn't export the art: {e}")),
                 }
             }
+            AppMsg::ReorderItem(from, to) => {
+                self.album.move_item(from, to);
+            }
+            AppMsg::FilesDropped(paths) => {
+                let plan = import::plan_drop(&paths);
+
+                // One audio file, nothing else: same flow as the Add Track button.
+                if plan.audio.len() == 1 && plan.cover.is_none() && paths.len() == 1 && !paths[0].is_dir() {
+                    if self.album.is_full(self.config.max_count_of_tracks_in_single) {
+                        self.toast(&format!(
+                            "Single cannot hold more than {} Track(s).",
+                            self.config.max_count_of_tracks_in_single
+                        ));
+                    } else {
+                        sender.input(AppMsg::TrackFileChosen(plan.audio[0].clone()));
+                    }
+                    return;
+                }
+
+                // Cover first, so a folder's cover wins over art embedded in its tracks.
+                if let Some(cover) = plan.cover && (plan.audio.is_empty() || self.album.art_path.is_none()) {
+                    self.album.art_path = Some(cover);
+                }
+
+                let existing: std::collections::HashSet<PathBuf> = self
+                    .album
+                    .get_items()
+                    .iter()
+                    .filter_map(|i| match i {
+                        AlbumItem::Track(t) => Some(t.file_path.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                let max = self.config.max_count_of_tracks_in_single;
+                let (mut added, mut duplicates, mut full, mut unreadable) = (0, 0, 0, 0);
+
+                for path in plan.audio {
+                    if existing.contains(&path) {
+                        duplicates += 1;
+                        continue;
+                    }
+                    let Ok(edit) = tags::read_track_edit(&path, &self.album.album_artist, &self.album.genre) else {
+                        unreadable += 1;
+                        continue;
+                    };
+                    let mut track = Track::new(path.clone());
+                    if track.apply_edit(edit).is_err() {
+                        unreadable += 1;
+                        continue;
+                    }
+                    if self.album.add_track(track, max) {
+                        added += 1;
+                        self.art_from_track(&path);
+                    } else {
+                        full += 1;
+                    }
+                }
+
+                let mut parts = Vec::new();
+                if added > 0 { parts.push(format!("Added {added} tracks(s)")); }
+                if duplicates > 0 { parts.push(format!("{duplicates} already in the album")); }
+                if full > 0 { parts.push(format!("{full} don't fit")); }
+                if unreadable > 0 { parts.push(format!("{unreadable} unreadable")); }
+                if plan.ignored > 0 { parts.push(format!("{} unsupported files(s) ignored", plan.ignored)); }
+                if !parts.is_empty() {
+                    self.toast(&parts.join(", "));
+                }
+            }
         }
     }
 
@@ -1227,6 +1311,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 row_box.append(&move_up_button);
                 row_box.append(&move_down_button);
                 row_box.append(&delete_button);
+                enable_reorder(&row_box, &label, idx, sender.clone());
                 row_box.upcast()
             }
             AlbumItem::Track(track) => {
@@ -1274,6 +1359,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 row_box.append(&move_down_button);
                 row_box.append(&edit_button);
                 row_box.append(&delete_button);
+                enable_reorder(&row_box, &label, idx, sender.clone());
                 row_box.upcast()
             }
             AlbumItem::Void { size } => {
@@ -1322,11 +1408,34 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                 row_box.append(&move_down_button);
                 row_box.append(&size_spinner);
                 row_box.append(&delete_button);
+                enable_reorder(&row_box, &label, idx, sender.clone());
                 row_box.upcast()
             }
         };
         container.append(&row);
     }
+}
+
+fn enable_reorder(row: &gtk::Box, handle: &impl IsA<gtk::Widget>, idx: usize, sender: ComponentSender<AppModel>) {
+    let source = gtk::DragSource::builder().actions(gtk::gdk::DragAction::MOVE).build();
+    source.connect_prepare(move |_, _, _| {
+        Some(gtk::gdk::ContentProvider::for_value(&(idx as u32).to_value()))
+    });
+    let weak_row = row.downgrade();
+    source.connect_drag_begin(move |source, _| {
+        if let Some(row) = weak_row.upgrade() {
+            source.set_icon(Some(&gtk::WidgetPaintable::new(Some(&row))), 0, 0);
+        }
+    });
+    handle.add_controller(source);
+
+    let target = gtk::DropTarget::new(u32::static_type(), gtk::gdk::DragAction::MOVE);
+    target.connect_drop(move |_, value, _, _| {
+        let Ok(from) = value.get::<u32>() else { return false };
+        sender.input(AppMsg::ReorderItem(from as usize, idx));
+        true
+    });
+    row.add_controller(target);
 }
 
 fn main() {
