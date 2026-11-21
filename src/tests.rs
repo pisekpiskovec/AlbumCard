@@ -491,7 +491,7 @@ fn every_edit_field_survives_an_id3_round_trip() {
         !(album.mode == Single && config::Config::default().skip_saving_track_position_in_single),
     );
     assert!(summary.reports[0].result.is_ok());
-    assert!(summary.reports[0].unsupported.is_empty());
+    assert!(summary.reports[0].unsupported.is_empty(), "unsupported: {:?}", summary.reports[0].unsupported);
 
     let back = read_track_edit(&path, "Artist", "Genre").unwrap();
     assert_eq!(
@@ -524,7 +524,14 @@ fn default_patterns_render() {
 #[test]
 fn every_token_is_filled() {
     let r = render("%{artists}|%{artist}|%{title}|%{album}|%{year}|%{aartist}|%{track}|%{disk}", &parts()).unwrap();
-    assert_eq!(r, "Mili, World's End Girlfriend|Mili|Vitamins|Millennium Mother|2018|Mili|04|1");
+    assert_eq!(r, "Mili, World's End Girlfriend-Mili-Vitamins-Millennium Mother-2018-Mili-04-1");
+}
+
+#[test]
+fn characters_illegal_on_other_filesystems_are_replaced() {
+    let mut p = parts();
+    p.title = "a|b".into();
+    assert_eq!(render("%{title}", &p).unwrap(), "a-b");
 }
 
 #[test]

@@ -347,9 +347,8 @@ fn write_track_inner(
     let composer = joined(&track.composer);
     let lyricist = joined(&track.lyricist);
     let remixer = joined(&track.remixer);
-    let fields: [(&'static str, ItemKey, Option<&str>); 11] = [
+    let fields: [(&'static str, ItemKey, Option<&str>); 10] = [
         ("release date", ItemKey::RecordingDate, date.as_deref()),
-        ("release year", ItemKey::Year, year.as_deref()),
         ("performer", ItemKey::Performer, performer.as_deref()),
         ("composer", ItemKey::Composer, composer.as_deref()),
         ("lyricist", ItemKey::Lyricist, lyricist.as_deref()),
@@ -372,6 +371,10 @@ fn write_track_inner(
         }
     }
 
+    // Year is best-effors: formats with a separate year frame (e.g. ID3v2.3) get it,
+    // ID3v2.4 has none and the recording date already carries the year.
+    let _ = put(tag, ItemKey::Year, year.as_deref());
+
     match picture {
         Some(picture) => {
             tag.remove_picture_type(lofty::picture::PictureType::CoverFront);
@@ -384,7 +387,10 @@ fn write_track_inner(
     tagged.save_to_path(path, write_opts()).map_err(err)?;
 
     for (label, cn, value) in custom {
-        if !value.is_none() && !read_custom(path, cn).is_none() && !write_custom(path, cn, value.as_deref())? {
+        if value.is_none() && read_custom(path, cn).is_none() {
+            continue;
+        }
+        if !write_custom(path, cn, value.as_deref())? {
             unsupported.push(label);
         }
     }
