@@ -924,13 +924,15 @@ impl SimpleComponent for AppModel {
                 }
 
                 let mut parts = Vec::new();
-                if added > 0 { parts.push(format!("Added {added} tracks(s)")); }
+                if added > 0 { parts.push(format!("Added {added} track(s)")); }
                 if duplicates > 0 { parts.push(format!("{duplicates} already in the album")); }
                 if full > 0 { parts.push(format!("{full} don't fit")); }
                 if unreadable > 0 { parts.push(format!("{unreadable} unreadable")); }
-                if plan.ignored > 0 { parts.push(format!("{} unsupported files(s) ignored", plan.ignored)); }
+                if plan.ignored > 0 { parts.push(format!("{} unsupported file(s) ignored", plan.ignored)); }
                 if !parts.is_empty() {
                     self.toast(&parts.join(", "));
+                } else {
+                    self.toast("Nothing to import: no supported files found.");
                 }
             }
         }
@@ -1273,7 +1275,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
         let row: gtk::Widget = match item {
             AlbumItem::Disk => {
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                let draggable = gtk::Image::from_icon_name("list-drag-handle-symbolic");
                 draggable.add_css_class("dim-label");
                 draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let disk_label = match album.disk_number_at(idx) {
@@ -1321,7 +1323,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
             AlbumItem::Track(track) => {
                 let pos_str = position.map(|p| p.to_string()).unwrap_or_default();
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                let draggable = gtk::Image::from_icon_name("list-drag-handle-symbolic");
                 draggable.add_css_class("dim-label");
                 draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let label = gtk::Label::builder()
@@ -1372,7 +1374,7 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
             }
             AlbumItem::Void { size } => {
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                let draggable = gtk::Image::from_icon_name("list-drag-handle-symbolic");
                 draggable.add_css_class("dim-label");
                 draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let label = gtk::Label::builder()
