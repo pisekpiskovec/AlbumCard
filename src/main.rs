@@ -1273,6 +1273,9 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
         let row: gtk::Widget = match item {
             AlbumItem::Disk => {
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                draggable.add_css_class("dim-label");
+                draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let disk_label = match album.disk_number_at(idx) {
                     Some(n) => format!("Disc {n}"),
                     None => gettext("Disc"), // fallback that should not happen
@@ -1307,16 +1310,20 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                         sender.input(AppMsg::DeleteItem(idx));
                     });
                 }
+                row_box.append(&draggable);
                 row_box.append(&label);
                 row_box.append(&move_up_button);
                 row_box.append(&move_down_button);
                 row_box.append(&delete_button);
-                enable_reorder(&row_box, &label, idx, sender.clone());
+                enable_reorder(&row_box, &draggable, idx, sender.clone());
                 row_box.upcast()
             }
             AlbumItem::Track(track) => {
                 let pos_str = position.map(|p| p.to_string()).unwrap_or_default();
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                draggable.add_css_class("dim-label");
+                draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let label = gtk::Label::builder()
                     .label(format!("{pos_str}. {}", track.title))
                     .hexpand(true)
@@ -1354,16 +1361,20 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                         sender.input(AppMsg::DeleteItem(idx));
                     });
                 }
+                row_box.append(&draggable);
                 row_box.append(&label);
                 row_box.append(&move_up_button);
                 row_box.append(&move_down_button);
                 row_box.append(&edit_button);
                 row_box.append(&delete_button);
-                enable_reorder(&row_box, &label, idx, sender.clone());
+                enable_reorder(&row_box, &draggable, idx, sender.clone());
                 row_box.upcast()
             }
             AlbumItem::Void { size } => {
                 let row_box = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                let draggable = gtk::Image::from_icon_name("list-drag-handle");
+                draggable.add_css_class("dim-label");
+                draggable.set_cursor(Some(&gtk::gdk::Cursor::builder().name("grab").build()));
                 let label = gtk::Label::builder()
                     .label(format!("Void ({size})"))
                     .halign(gtk::Align::Start)
@@ -1403,12 +1414,13 @@ fn populate_tracklist(container: &gtk::Box, album: &Album, sender: ComponentSend
                         sender.input(AppMsg::DeleteItem(idx));
                     });
                 }
+                row_box.append(&draggable);
                 row_box.append(&label);
                 row_box.append(&move_up_button);
                 row_box.append(&move_down_button);
                 row_box.append(&size_spinner);
                 row_box.append(&delete_button);
-                enable_reorder(&row_box, &label, idx, sender.clone());
+                enable_reorder(&row_box, &draggable, idx, sender.clone());
                 row_box.upcast()
             }
         };
