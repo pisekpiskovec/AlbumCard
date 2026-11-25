@@ -133,4 +133,17 @@ impl Sha256 {
         self.h6 = ( H6 + f ) & u32::MAX;
         self.h7 = ( H7 + g ) & u32::MAX;
     }
+
+    fn process_byte(&mut self, byte: u32) {
+        eprintln!("{byte:?}");
+
+        // store the byte
+        self.block.push(byte);
+
+        // check if we have a full block ready for processing
+        if self.block.len() == 64 {
+            self.process_block();
+            self.block = Vec::with_capacity(64);
+        }
+    }
 }
