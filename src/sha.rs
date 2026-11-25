@@ -1,6 +1,8 @@
 // Attempt to recreate SHA-256 by translating pure Bash to Rust
 
 use std::path::PathBuf;
+use std::fs::File;
+use std::io::Read;
 
 // first 32 bits of the fractional parts of the sqrt of the first 8 primes
 const H0: u32 = 0x6a09e667;
@@ -23,7 +25,7 @@ const K: [u32; 64] = [
    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
-struct Sha256 {
+pub struct Sha256 {
     block: Vec<u32>,
     byte_count: usize,
     h0: u32,
@@ -147,6 +149,40 @@ impl Sha256 {
         }
     }
 
+    fn process_input<R: Read>(&mut self, mut reader: R) -> std::io::Result<()> {
+        let mut buf = [0u8; 4096];
+
+        loop {
+            let n = reader.read(&mut buf)?;
+            if n == 0 {
+                break;
+            }
+
+            for &b in &buf[..n] {
+                self.process_byte(b as u32);
+                self.byte_count += 1;
+            }
+        }
+
+        // Padd with 0x80, then 0x00 until 8 bytes remain for the 64-bit length
+        self.process_byte(0x80);
+        while self.block.len() != 56 {
+            self.process_byte(0);
+        }
+
+        // Append original length in bits (big-endian u64)
+        let bit_len = (self.byte_count as u64).wrapping_mul(8);
+        for byte in bit_len.to_be_bytes() {
+            self.process_byte(byte as u32);
+        }
+
+        if !self.block.is_empty() {
+            return Err(std::io::Error::other("uh oh! something went wrong"));
+        }
+
+        Ok(())
+    }
+
     fn print_hash(&self) -> String {
         format!(
             "{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}",
@@ -159,5 +195,16 @@ impl Sha256 {
             self.h6,
             self.h7,
         ).to_string()
+    }
+
+    pub fn sha256(file: PathBuf) -> Result<String, String> {
+        if !file.is_file() || !file.exists() {
+            return Err("File does not exist or is not file".to_string());
+        }
+        let mut hasher: Self = Self::default();
+        let f = File::open(&file).map_err(|e| e.to_string())?;
+        hasher.process_input(f).map_err(|e| e.to_string())?;
+
+        Ok(hasher.print_hash())
     }
 }

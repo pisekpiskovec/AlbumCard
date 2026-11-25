@@ -9,7 +9,7 @@ use crate::{
     config, import::{natural_cmp, plan_drop}, models::{
         album::{Album, AlbumItem, AlbumItemPosition, AlbumMode::*},
         track::{DiscLabel, Track, TrackEdit, TrackFieldError},
-    }, renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern}, sha::sha256, tags::{read_track_edit, write_album_tags},
+    }, renaming::{NameParts, PlannedRename, apply, plan, render, validate_pattern}, sha, tags::{read_track_edit, write_album_tags},
 };
 
 fn silent_mp3(name: &str) -> PathBuf {
@@ -679,6 +679,6 @@ fn our_sha256_output_matches_systems_sha256_output() {
     const SYSTEM: &str = "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881";
     let dir = std::env::temp_dir().join("albumcard-sha-test");
     std::fs::create_dir_all(&dir).unwrap();
-    let our = sha256(touch(&dir, "sha"));
+    let our = sha::Sha256::sha256(touch(&dir, "sha")).expect("Sha should be generatable");
     assert_eq!(our.as_str(), SYSTEM);
 }
