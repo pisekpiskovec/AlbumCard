@@ -4,16 +4,6 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
-// first 32 bits of the fractional parts of the sqrt of the first 8 primes
-const H0: u32 = 0x6a09e667;
-const H1: u32 = 0xbb67ae85;
-const H2: u32 = 0x3c6ef372;
-const H3: u32 = 0xa54ff53a;
-const H4: u32 = 0x510e527f;
-const H5: u32 = 0x9b05688c;
-const H6: u32 = 0x1f83d9ab;
-const H7: u32 = 0x5be0cd19;
-
 const K: [u32; 64] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
     0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
@@ -43,6 +33,7 @@ impl Sha256 {
         Self {
             block: Vec::with_capacity(64),
             byte_count: 0,
+            // first 32 bits of the fractional parts of the sqrt of the first 8 primes
             h0: 0x6a09e667,
             h1: 0xbb67ae85,
             h2: 0x3c6ef372,
@@ -72,20 +63,20 @@ impl Sha256 {
         let mut s0: u32;
         let mut s1: u32;
         for i in 16..64 {
-            s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_left(32 - 18) ^ (w[i - 15] >> 3);
-            s1 = w[i - 2].rotate_left(32 - 17) ^ w[i - 2].rotate_left(32 - 19) ^ (w[i - 2] >> 10);
-            w[i] = w[i - 16] + s0 + w[i - 7] + s1;
+            s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
+            s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
+            w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
         }
 
         // Initialize working variables to current hash value:
-        let mut a = H0;
-        let mut b = H1;
-        let mut c = H2;
-        let mut d = H3;
-        let mut e = H4;
-        let mut f = H5;
-        let mut g = H6;
-        let mut h = H7;
+        let mut a = self.h0;
+        let mut b = self.h1;
+        let mut c = self.h2;
+        let mut d = self.h3;
+        let mut e = self.h4;
+        let mut f = self.h5;
+        let mut g = self.h6;
+        let mut h = self.h7;
 
         // Compression function main loop:
         let mut s1: u32;
@@ -96,30 +87,31 @@ impl Sha256 {
         let mut temp2: u32;
 
         for i in 0..64 {
-            s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_left(32 - 25);
+            s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
             ch = (e & f) ^ ((!e) & g);
-            temp1 = h + s1 + ch + K[i] + w[i];
-            s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_left(32 - 22);
+            temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K[i]).wrapping_add(w[i]);
+            s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
             maj = (a & b) ^ (a & c) ^ (b & c);
-            temp2 = s0 + maj;
+            temp2 = s0.wrapping_add(maj);
 
             h = g;
             g = f;
             f = e;
-            e = d + temp1;
+            e = d.wrapping_add(temp1);
             d = c;
             c = b;
             b = a;
-            a = temp1 + temp2;
+            a = temp1.wrapping_add(temp2);
         }
 
-        self.h0 = H0 + a;
-        self.h1 = H1 + b;
-        self.h2 = H2 + c;
-        self.h3 = H3 + d;
-        self.h5 = H5 + e;
-        self.h6 = H6 + f;
-        self.h7 = H7 + g;
+        self.h0 = self.h0.wrapping_add(a);
+        self.h1 = self.h1.wrapping_add(b);
+        self.h2 = self.h2.wrapping_add(c);
+        self.h3 = self.h3.wrapping_add(d);
+        self.h4 = self.h4.wrapping_add(e);
+        self.h5 = self.h5.wrapping_add(f);
+        self.h6 = self.h6.wrapping_add(g);
+        self.h7 = self.h7.wrapping_add(h);
     }
 
     fn process_byte(&mut self, byte: u32) {
@@ -171,10 +163,9 @@ impl Sha256 {
 
     fn print_hash(&self) -> String {
         format!(
-            "{:#0x}{:#0x}{:#0x}{:#0x}{:#0x}{:#0x}{:#0x}{:#0x}",
+            "{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}{:08x}",
             self.h0, self.h1, self.h2, self.h3, self.h4, self.h5, self.h6, self.h7,
         )
-        .to_string()
     }
 
     pub fn sha256(file: PathBuf) -> Result<String, String> {
