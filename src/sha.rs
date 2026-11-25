@@ -146,4 +146,18 @@ impl Sha256 {
             self.block = Vec::with_capacity(64);
         }
     }
+
+    fn print_hash(&self) -> String {
+        format!(
+            "{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}{:#02x}",
+            self.h0,
+            self.h1,
+            self.h2,
+            self.h3,
+            self.h4,
+            self.h5,
+            self.h6,
+            self.h7,
+        ).to_string()
+    }
 }
