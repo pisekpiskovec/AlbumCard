@@ -4,6 +4,7 @@ mod i18n;
 mod import;
 mod models;
 mod renaming;
+mod sha;
 mod storage;
 mod tags;
 mod tests;
