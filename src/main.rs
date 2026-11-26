@@ -937,6 +937,8 @@ impl SimpleComponent for AppModel {
                 }
             }
         }
+        self.album.migrate_path_to_hash();
+
     }
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {

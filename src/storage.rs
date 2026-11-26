@@ -3,14 +3,24 @@ use std::{fs, io, path::PathBuf, time::SystemTime};
 use gtk::glib;
 use uuid::Uuid;
 
-use crate::models::album::Album;
+use crate::{models::album::Album, sha};
 
 fn albums_dir() -> PathBuf {
     glib::user_data_dir().join("albumcard").join("albums")
 }
 
+fn arts_dir() -> PathBuf {
+    glib::user_data_dir().join("albumcard").join("arts")
+}
+
 fn ensure_album_dir() -> io::Result<PathBuf> {
     let dir = albums_dir();
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+fn ensure_art_dir() -> io::Result<PathBuf> {
+    let dir = arts_dir();
     fs::create_dir_all(&dir)?;
     Ok(dir)
 }
@@ -75,4 +85,28 @@ pub fn delete_album(id: Uuid) -> io::Result<()> {
     }
 
     Ok(())
+}
+
+/// Copies the image to a safe place, calculates SHA and renames it.
+pub fn store_image(path: PathBuf) -> Result<String, String> {
+    // Get the safe place
+    let dir = match ensure_art_dir() {
+        Ok(v) => v,
+        Err(e) => return Err(e.to_string()),
+    };
+
+    // Calculate SHA
+    let hash = sha::Sha256::sha256(path.clone())?;
+
+    // Copy the image
+    if let Err(e) = fs::copy(path.clone(), dir.join(hash.clone())) {
+        return Err(e.to_string());
+    }
+
+    // Rename the file
+    // if let Err(e) = fs::rename(dir.join(path), dir.join(hash.clone())) {
+    //     return Err(e.to_string());
+    // }
+    
+    Ok(hash)
 }

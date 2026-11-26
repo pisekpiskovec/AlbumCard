@@ -1,5 +1,6 @@
-use crate::models::track::{DiscLabel, Track};
+use crate::{models::track::{DiscLabel, Track}, storage};
 use chrono::NaiveDate;
+use lofty::picture::PictureType;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -11,7 +12,8 @@ pub enum AlbumMode {
     Ep,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct Album {
     pub id: Uuid,
     pub(crate) mode: AlbumMode,
@@ -21,6 +23,7 @@ pub struct Album {
     pub(crate) genre: String,
     items: Vec<AlbumItem>,
     pub(crate) art_path: Option<PathBuf>,
+    pub art_hashes: Vec<(PictureType, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +82,12 @@ impl Album {
             "" => None,
             s => Some(NaiveDate::parse_from_str(s, "%Y-%m-%d")?),
         };
+
+        let mut hash: String = String::new();
+        if let Some(art_path) = art.clone() {
+            hash = storage::store_image(art_path).unwrap_or_default();
+        }
+        
         Ok(Self {
             id: Uuid::new_v4(),
             mode,
@@ -88,6 +97,7 @@ impl Album {
             genre: genre.to_string(),
             items: Vec::new(),
             art_path: art,
+            art_hashes: if hash.is_empty() { Vec::new() } else { [(PictureType::CoverFront, hash)].to_vec() },
         })
     }
 
@@ -102,6 +112,7 @@ impl Album {
             genre: String::new(),
             items: Vec::new(),
             art_path: None,
+            art_hashes: Vec::new(),
         }
     }
 
@@ -343,5 +354,14 @@ impl Album {
         }
 
         if errors.is_empty() { Ok(()) } else { Err(errors) }
+    }
+
+    pub fn migrate_path_to_hash(&mut self) {
+        if self.art_path.is_none() {
+            return;
+        }
+        if let Ok(hash) = storage::store_image(self.art_path.clone().unwrap()) {
+            self.art_hashes.push((PictureType::CoverFront, hash));
+        }
     }
 }

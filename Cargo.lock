@@ -756,6 +756,7 @@ dependencies = [
  "log",
  "ogg_pager",
  "paste",
+ "serde",
 ]
 
 [[package]]
