@@ -31,6 +31,7 @@ use crate::models::{
     track::Track,
 };
 use crate::renaming::{NameParts, PlannedRename};
+use crate::storage::store_image;
 
 #[derive(Debug)]
 enum Direction {
@@ -739,13 +740,16 @@ impl SimpleComponent for AppModel {
                 });
             }
             AppMsg::ImageFileChosen(art_path) => {
-                self.album.art_path = Some(art_path);
+                match store_image(art_path) {
+                    Ok(hash) => self.album.set_art(lofty::picture::PictureType::CoverFront, hash),
+                    Err(e) => self.toast(&format!("Couldn't open image: {e}")),
+                }
             }
             AppMsg::CloseRequest => {
                 // self.config.save().ok();
                 self.leave(Pending::Quit, &sender);
             }
-            AppMsg::ClearAlbumArt => self.album.art_path = None,
+            AppMsg::ClearAlbumArt => self.album.clear_art(lofty::picture::PictureType::CoverFront),
             AppMsg::DeleteAlbumRequest(id) => {
                 let name = self
                     .sidebar_albums
@@ -834,7 +838,7 @@ impl SimpleComponent for AppModel {
                 Err(errors) => self.toast(&Self::first_problem(&errors)),
             },
             AppMsg::ExportAlbumArt => {
-                let Some(art) = self.album.art_path.as_ref() else {
+                let Some(art) = self.album.cover_hash().map(str::to_string).map(storage::art_path) else {
                     return;
                 };
                 let dialog = FileDialog::builder().title(gettext("Save image file")).build();
@@ -853,7 +857,7 @@ impl SimpleComponent for AppModel {
                 });
             }
             AppMsg::ExportAlbumArtPathChosen(mut destination) => {
-                let Some(art) = self.album.art_path.as_ref() else {
+                let Some(art) = self.album.cover_hash().map(str::to_string).map(storage::art_path) else {
                     return;
                 };
                 if destination.extension().is_none()
@@ -886,8 +890,11 @@ impl SimpleComponent for AppModel {
                 }
 
                 // Cover first, so a folder's cover wins over art embedded in its tracks.
-                if let Some(cover) = plan.cover && (plan.audio.is_empty() || self.album.art_path.is_none()) {
-                    self.album.art_path = Some(cover);
+                if let Some(cover) = plan.cover && (plan.audio.is_empty() || self.album.art_hashes.is_empty()) {
+                    match store_image(cover) {
+                        Ok(hash) => self.album.set_art(lofty::picture::PictureType::CoverFront, hash),
+                        Err(e) => self.toast(&format!("Couldn't open image: {e}")),
+                    }
                 }
 
                 let existing: std::collections::HashSet<PathBuf> = self
@@ -937,8 +944,6 @@ impl SimpleComponent for AppModel {
                 }
             }
         }
-        self.album.migrate_path_to_hash();
-
     }
 
     fn update_view(&self, widgets: &mut Self::Widgets, sender: ComponentSender<Self>) {
@@ -952,11 +957,11 @@ impl SimpleComponent for AppModel {
         populate_tracklist(&widgets.tracklist_box, &self.album, sender.clone());
 
         // Album art
-        let art_icon = match self.album.art_path {
+        let art_icon = match self.album.cover_hash().map(str::to_string).map(storage::art_path) {
             Some(ref path) => gtk::Image::from_file(path),
             None => gtk::Image::from_icon_name("folder-music-symbolic"),
         };
-        if self.album.art_path.is_none() {
+        if self.album.cover_hash().map(str::to_string).map(storage::art_path).is_none() {
             art_icon.set_pixel_size(48);
         } else {
             art_icon.set_pixel_size(96);
@@ -989,8 +994,8 @@ impl SimpleComponent for AppModel {
             widgets.save_button.remove_css_class("suggested-action");
         }
 
-        widgets.del_art_action.set_enabled(self.album.art_path.is_some());
-        widgets.export_art_action.set_enabled(self.album.art_path.is_some());
+        widgets.del_art_action.set_enabled(self.album.cover_hash().map(str::to_string).map(storage::art_path).is_some());
+        widgets.export_art_action.set_enabled(self.album.cover_hash().map(str::to_string).map(storage::art_path).is_some());
 
         let _ = &widgets.split_view;
     }
@@ -1107,17 +1112,19 @@ impl AppModel {
     }
 
     fn art_from_track(&mut self, audio: &std::path::Path) {
-        if self.album.art_path.is_some() {
-            return;
-        }
-        let Some(dir) = dirs::cache_dir().map(|d| d.join("albumcard").join("covers")) else {
-            return;
-        };
-
+        if self.album.cover_hash().is_some() { return; }
+        let Some(dir) = dirs::cache_dir().map(|d| d.join("albumcard").join("covers")) else { return; };
         match tags::extract_cover(audio, &dir, &self.album.id.to_string()) {
-            Ok(Some(path)) => {
-                self.album.art_path = Some(path);
-                self.toast(&gettext("Album art taken from the new track."));
+            Ok(Some(tmp)) => {
+                let stored = store_image(tmp.clone());
+                let _ = std::fs::remove_file(&tmp);
+                match stored {
+                    Ok(h) => {
+                        self.album.set_art(lofty::picture::PictureType::CoverFront, h);
+                        self.toast(&gettext("Album art taken from the new track."));
+                    },
+                    Err(e) => self.toast(&format!("Couldn't store the cover: {e}")),
+                }
             }
             Ok(None) => {}
             Err(e) => self.toast(&format!("Couldn't read the cover: {e}")),

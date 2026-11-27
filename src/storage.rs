@@ -35,9 +35,10 @@ pub fn save_album(album: &Album) -> io::Result<()> {
 
 /// Reads and parses a single album by id.
 pub fn load_album(id: Uuid) -> io::Result<Album> {
-    let path = albums_dir().join(format!("{id}.json"));
-    let json = fs::read_to_string(path)?;
-    Album::from_json(&json).map_err(io::Error::other)
+    let json = fs::read_to_string(albums_dir().join(format!("{id}.json")))?;
+    let mut album = Album::from_json(&json).map_err(io::Error::other)?;
+    album.migrate_legacy_art();
+    Ok(album)
 }
 
 pub fn list_albums() -> Vec<(Uuid, String)> {
@@ -57,9 +58,10 @@ pub fn list_albums() -> Vec<(Uuid, String)> {
         let Ok(json) = fs::read_to_string(&path) else {
             continue;
         };
-        let Ok(album) = Album::from_json(&json) else {
+        let Ok(mut album) = Album::from_json(&json) else {
             continue;
         };
+        album.migrate_legacy_art();
         let modified = entry
             .metadata()
             .and_then(|m| m.modified())
@@ -109,4 +111,21 @@ pub fn store_image(path: PathBuf) -> Result<String, String> {
     // }
     
     Ok(hash)
+}
+
+/// Restore art path from hash.
+pub fn art_path(hash: String) -> PathBuf {
+    ensure_art_dir().unwrap().join(hash)
+}
+
+pub fn image_ext(path: &std::path::Path) -> &'static str {
+    use std::io::Read;
+    let mut buf = [0u8; 12];
+    let _ = std::fs::File::open(path).and_then(|mut f| f.read(&mut buf));
+    match &buf {
+        [0x89, b'P', b'N', b'G', ..] => "png",
+        [0xFF, 0xD8, ..] => "jpg",
+        [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P'] => "webp",
+        _ => "png",
+    }
 }

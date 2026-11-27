@@ -22,7 +22,8 @@ pub struct Album {
     pub(crate) release_date: Option<NaiveDate>,
     pub(crate) genre: String,
     items: Vec<AlbumItem>,
-    pub(crate) art_path: Option<PathBuf>,
+    #[serde(default, skip_serializing)]
+    art_path: Option<PathBuf>,
     pub art_hashes: Vec<(PictureType, String)>,
 }
 
@@ -356,12 +357,24 @@ impl Album {
         if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 
-    pub fn migrate_path_to_hash(&mut self) {
-        if self.art_path.is_none() {
-            return;
-        }
-        if let Ok(hash) = storage::store_image(self.art_path.clone().unwrap()) {
-            self.art_hashes.push((PictureType::CoverFront, hash));
+    pub fn set_art(&mut self, kind: PictureType, hash: String) {
+        self.art_hashes.retain(|(k, _)| *k != kind);
+        self.art_hashes.push((kind, hash));
+    }
+
+    pub fn clear_art(&mut self, kind: PictureType) {
+        self.art_hashes.retain(|(k, _)| *k != kind);
+    }
+
+    pub fn cover_hash(&self) -> Option<&str> {
+        self.art_hashes.iter().find(|(k, _)| *k == PictureType::CoverFront).map(|(_, h)| h.as_str())
+    }
+
+    /// Called once, from `load_album`. No-op when there's nothing to migrate.
+    pub fn migrate_legacy_art(&mut self) {
+        if self.cover_hash().is_some() { self.art_path = None; return; }
+        if let Some(p) = self.art_path.take() && let Ok(h) = storage::store_image(p) {
+            self.set_art(PictureType::CoverFront, h);
         }
     }
 }

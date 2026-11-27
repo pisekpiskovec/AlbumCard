@@ -115,8 +115,6 @@ impl Sha256 {
     }
 
     fn process_byte(&mut self, byte: u32) {
-        eprintln!("{byte:?}");
-
         // store the byte
         self.block.push(byte);
 

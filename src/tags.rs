@@ -380,7 +380,7 @@ fn write_track_inner(
             tag.remove_picture_type(lofty::picture::PictureType::CoverFront);
             tag.push_picture(picture.clone());
         }
-        None if album.art_path.is_none() => tag.remove_picture_type(lofty::picture::PictureType::CoverFront),
+        None if album.cover_hash().map(str::to_string).map(crate::storage::art_path).is_none() => tag.remove_picture_type(lofty::picture::PictureType::CoverFront),
         None => {}
     }
 
@@ -481,7 +481,7 @@ pub fn extract_cover(audio: &Path, dest_dir: &Path, stem: &str) -> Result<Option
 pub fn write_album_tags(album: &Album, save_position: bool) -> WriteSummary {
     let mut summary = WriteSummary::default();
 
-    let picture = match &album.art_path {
+    let picture = match &album.cover_hash().map(str::to_string).map(crate::storage::art_path) {
         Some(art_path) => match load_cover(art_path) {
             Ok(pic) => Some(pic),
             Err(e) => {
